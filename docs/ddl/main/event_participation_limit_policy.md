@@ -27,7 +27,7 @@ USER  / 100 / priority 20  → 전체 최대 100장 == max_entry_per_user
 ```
 
 ```sql
-CREATE TABLE event_platform.**event_participation_limit_policy** (
+CREATE TABLE event_platform.event_participation_limit_policy (
     id BIGSERIAL PRIMARY KEY,
 
     event_id BIGINT NOT NULL

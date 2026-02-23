@@ -20,31 +20,14 @@ CREATE TABLE event_attendance_daily_reward (
     
     reward_type VARCHAR(20) NOT NULL
         CHECK (reward_type IN ('POINT', 'COUPON', 'NONE')),
-        -- POINT: 포인트
-        -- COUPON: 쿠폰
+        -- POINT: 포인트 : point_amount 사용
+        -- COUPON: 쿠폰 : coupon_group_id 사용
         -- NONE: 보상 없음 (출석만 체크)
         
-    CONSTRAINT chk_daily_reward_match
     point_amount INTEGER,
     coupon_group_id BIGINT,
-    CHECK (
-       (reward_type = 'POINT' 
-            AND point_amount IS NOT NULL 
-            AND coupon_group_id IS NULL)
-      OR
-       (reward_type = 'COUPON' 
-            AND coupon_group_id IS NOT NULL 
-            AND point_amount IS NULL)
-      OR
-       (reward_type = 'NONE' 
-            AND point_amount IS NULL 
-            AND coupon_group_id IS NULL)
-       ),
-    
-    
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
-    
     /* ========================= 
      * 감사 컬럼 
      * ========================= */

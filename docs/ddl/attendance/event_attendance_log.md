@@ -5,7 +5,7 @@
 - 절대 reward snapshot 넣지 않음
 
 ```sql
-CREATE TABLE event_attendance_log (
+CREATE TABLE event_platform.event_attendance_log (
     id BIGSERIAL PRIMARY KEY,
     
     /* =========================
@@ -22,15 +22,14 @@ CREATE TABLE event_attendance_log (
     attendance_date DATE NOT NULL,
         -- 유저가 시도한 출석 기준 날짜 (timezone 정책 기준)
 
-    action_result VARCHAR(30) NOT NULL
-        CHECK (action_result IN (
-            'CHECK_IN',            -- 출석 성공
-            'ALREADY_CHECKED',     -- 이미 출석함
-            'LIMIT_REJECT',        -- 제한 정책에 의해 실패
-            'ELIGIBILITY_REJECT',  -- 참여 자격 실패
-            'OUT_OF_PERIOD',       -- 이벤트 기간 아님
-            'FAILED'               -- 시스템 오류 등
-        )),
+    action_result VARCHAR(30) NOT NULL,
+            -- 'CHECK_IN',            -- 출석 성공
+            -- 'ALREADY_CHECKED',     -- 이미 출석함
+            -- 'LIMIT_REJECT',        -- 제한 정책에 의해 실패
+            -- 'ELIGIBILITY_REJECT',  -- 참여 자격 실패
+            -- 'OUT_OF_PERIOD',       -- 이벤트 기간 아님
+            -- 'FAILED'               -- 시스템 오류 등
+        
     
     failure_reason TEXT,
         -- 실패 시 상세 사유 (옵션)

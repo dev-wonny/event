@@ -42,8 +42,7 @@ CREATE TABLE **event_entry_target** (
     /* ========================= 
      * 포함/제외 규칙 
      * ========================= */
-    rule_type VARCHAR(20) NOT NULL
-        CHECK (rule_type IN ('INCLUDE', 'EXCLUDE')),
+    rule_type VARCHAR(20) NOT NULL,
         -- INCLUDE: 이 대상 구매 시 응모권 발급
         -- EXCLUDE: 이 대상은 응모권 발급 제외
 
@@ -56,11 +55,11 @@ CREATE TABLE **event_entry_target** (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_by BIGINT NOT NULL,
 
-    UNIQUE (event_id, target_type, target_id)
+    UNIQUE (event_id, target_type, target_id, is_deleted)
 );
 
-CREATE INDEX idx_entry_target_event ON **event_entry_target**(event_id) 
+CREATE INDEX idx_entry_target_event ON event_entry_target(event_id) 
     WHERE is_deleted = FALSE;
 
-COMMENT ON TABLE **event_entry_target** IS '응모권 발급 대상 (상품/카테고리/브랜드)';
+COMMENT ON TABLE event_entry_target IS '응모권 발급 대상 (상품/카테고리/브랜드)';
 ```

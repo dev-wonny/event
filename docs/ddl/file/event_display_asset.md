@@ -14,19 +14,36 @@ CREATE TABLE event_platform.**event_display_asset** (
     **event_id** BIGINT NOT NULL
         REFERENCES event_platform.event(id) ON DELETE CASCADE,
 
-    asset_type VARCHAR(30) NOT NULL
+    /* =========================
+     * UI Slot (Aspect Ratio 기준)
+     * ========================= */
+    asset_type VARCHAR(40) NOT NULL
         CHECK (asset_type IN (
-            'THUMBNAIL',
-            'BANNER',
-            'DETAIL_IMAGE',
-            '출석체크에서만 사용하는 이미지',
-            '랜덤리워드에서만 사용하는 이미지'
+            'BACKGROUND_DESKTOP',
+            'BACKGROUND_MOBILE',
+            'BUTTON',
+            'FOOTER'
         )),
+    -- React에서 사용하는 UI 슬롯 개념
 
+    -- UI에서 보여줄 크기
+    display_width INTEGER,
+    display_height INTEGER,
+
+    /* =========================
+     * 물리 파일 참조
+     * ========================= */
     file_id BIGINT NOT NULL
         REFERENCES event_platform.file(id),
 
-    display_order INTEGER NOT NULL DEFAULT 0,
+    /* =========================
+     * 표시 제어
+     * ========================= */
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    -- 여러 버튼/이미지 순서 제어용
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    -- 관리자 OFF 처리 가능
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by BIGINT NOT NULL,
@@ -36,11 +53,17 @@ CREATE TABLE event_platform.**event_display_asset** (
     UNIQUE(event_id, asset_type)
 );
 
+-- event_display_asset_variant
+CREATE UNIQUE INDEX ux_event_asset_variant
+ON event_platform.event_display_asset(
+    event_id,
+    asset_type,
+    variant_type
+);
+
+-- 이벤트 조회 최적화
 CREATE INDEX idx_event_display_asset_event
 ON event_platform.event_display_asset(event_id);
-
-CREATE INDEX idx_event_display_asset_file
-ON event_platform.event_display_asset(file_id);
 
 COMMENT ON TABLE event_platform.event_display_asset
 IS '이벤트 전시용 이미지 매핑 (file FK)';

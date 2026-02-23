@@ -1,7 +1,7 @@
 # **event_draw_policy (추첨 정책)**
 
 ```sql
-CREATE TABLE **event_draw_policy** (
+CREATE TABLE event_platform.event_draw_policy (
     id BIGSERIAL PRIMARY KEY,
 
     event_id BIGINT
@@ -11,7 +11,6 @@ CREATE TABLE **event_draw_policy** (
      * 추첨 방식 
      * ========================= */
     draw_type VARCHAR(20) NOT NULL DEFAULT 'SINGLE'
-        CHECK (draw_type IN ('SINGLE', 'MULTIPLE')),
         -- SINGLE: 1회 추첨 (이벤트 종료 후 1번만)
         -- MULTIPLE: 다회차 추첨 (주간/일간 등 여러 번)
         
@@ -28,6 +27,6 @@ CREATE TABLE **event_draw_policy** (
     updated_by BIGINT NOT NULL
 );
 
-COMMENT ON TABLE event_entry_policy IS '응모권 이벤트 발급 정책';
+COMMENT ON TABLE event_draw_policy IS '추첨 정책';
 
 ```

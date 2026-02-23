@@ -48,33 +48,7 @@ CREATE TABLE event_platform.**event_attendance_history** (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE(event_id, member_id, attendance_date),
-    UNIQUE(attendance_log_id),
-
-    CONSTRAINT chk_daily_reward_match CHECK (
-        daily_reward_type IS NULL
-        OR
-        (daily_reward_type = 'POINT'
-            AND daily_point_amount IS NOT NULL
-            AND daily_coupon_group_id IS NULL)
-        OR
-        (daily_reward_type = 'COUPON'
-            AND daily_coupon_group_id IS NOT NULL
-            AND daily_point_amount IS NULL)
-        OR
-        (daily_reward_type = 'NONE')
-    ),
-
-    CONSTRAINT chk_bonus_reward_match CHECK (
-        bonus_reward_type IS NULL
-        OR
-        (bonus_reward_type = 'POINT'
-            AND bonus_point_amount IS NOT NULL
-            AND bonus_coupon_group_id IS NULL)
-        OR
-        (bonus_reward_type = 'COUPON'
-            AND bonus_coupon_group_id IS NOT NULL
-            AND bonus_point_amount IS NULL)
-    )
+    UNIQUE(attendance_log_id)
 );
 
 CREATE INDEX idx_att_hist_member_event_date

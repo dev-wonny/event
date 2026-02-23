@@ -7,11 +7,11 @@
 --   (1, 1, 1, 'COMPLETED', '2024-01-08 12:00:00', '2024-01-08 12:05:23', 1500, 10, ...),
 --   (2, 1, 2, 'SCHEDULED', '2024-01-15 12:00:00', NULL, 0, 0, ...);
 
-CREATE TABLE event_draw_round (
+CREATE TABLE event_platform.event_draw_round (
     id BIGSERIAL PRIMARY KEY,
     
     event_id BIGINT NOT NULL REFERENCES event_platform.event(id) ON DELETE CASCADE,
-    **event_draw_policy_id** INTEGER NOT NULL REFERENCES event_platform.**event_draw_policy**(id) ON DELETE CASCADE,
+    event_draw_policy_id BIGINT NOT NULL REFERENCES event_platform.event_draw_policy(id) ON DELETE CASCADE,
     draw_no INTEGER NOT NULL, -- 회차 번호 (1회차, 2회차...)
 
     /* ========================= 

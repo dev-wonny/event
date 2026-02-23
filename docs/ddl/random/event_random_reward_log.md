@@ -6,17 +6,17 @@
     - 꽝도 보상임
 
 ```sql
-CREATE TABLE **event_random_reward_log** (
+CREATE TABLE event_platform.event_random_reward_log (
     ...
 ) PARTITION BY RANGE (created_at);
 
 CREATE TABLE event_random_reward_log_2024_01 
-    PARTITION OF event_random_participation
+    PARTITION OF event_platform.event_random_reward_log
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 ```
 
 ```sql
-CREATE TABLE event_platform.**event_random_reward_log** (
+CREATE TABLE event_platform.event_random_reward_log (
     id BIGSERIAL PRIMARY KEY,
 
     event_id BIGINT NOT NULL
@@ -26,8 +26,7 @@ CREATE TABLE event_platform.**event_random_reward_log** (
     
     -- sns 공유 후, 랜덤 돌리기 함
     trigger_type VARCHAR(20)
-        CHECK (trigger_type IN ('BASE', 'SNS_SHARE', 'RETRY')),
-
+        -- 'BASE', 'SNS_SHARE', 'RETRY'
   
     
     /* 결과 */
@@ -36,7 +35,6 @@ CREATE TABLE event_platform.**event_random_reward_log** (
 
     /*  reward 컬럼 스냅샷 범위 */
     reward_type VARCHAR(20) NOT NULL
-        CHECK (reward_type IN ('POINT', 'COUPON', 'ENTRY', 'NONE')),
         -- POINT: 포인트
         -- COUPON: 쿠폰
         -- ENTRY: 다른 이벤트의 응모권
