@@ -57,8 +57,7 @@ CREATE TABLE event_platform.**event_display_asset** (
 CREATE UNIQUE INDEX ux_event_asset_variant
 ON event_platform.event_display_asset(
     event_id,
-    asset_type,
-    variant_type
+    asset_type
 );
 
 -- 이벤트 조회 최적화

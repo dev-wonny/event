@@ -1,4 +1,4 @@
-## event_attendance_daily_reward    -- 일별 보상 정의
+# event_attendance_daily_reward    -- 일별 보상 정의
 
 **✅ daily_reward = "그 날 출석하면 주는 기본 보상"**
 
@@ -19,7 +19,6 @@ CREATE TABLE event_attendance_daily_reward (
     REFERENCES event_platform.event_reward_catalog(id),
     
     reward_type VARCHAR(20) NOT NULL
-        CHECK (reward_type IN ('POINT', 'COUPON', 'NONE')),
         -- POINT: 포인트 : point_amount 사용
         -- COUPON: 쿠폰 : coupon_group_id 사용
         -- NONE: 보상 없음 (출석만 체크)

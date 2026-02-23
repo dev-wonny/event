@@ -26,9 +26,7 @@
 
 2 V → 30
 
-3 한 번 빠져서
-
-**출석이벤트 참여 못함**
+3 한 번 빠져서 --> 종료 --> 출석이벤트 참여 못함
 
 ## event_attendance_policy          -- 출석 정책 (총 일수, 누락 허용 등)
 
@@ -37,7 +35,7 @@
 - 몇 일짜리 출석인지? (7일, 15일, 30일)
 
 ```sql
-CREATE TABLE **event_attendance_policy** (
+CREATE TABLE event_attendance_policy (
     id BIGSERIAL PRIMARY KEY,
 
     event_id BIGINT NOT NULL
@@ -49,13 +47,10 @@ CREATE TABLE **event_attendance_policy** (
     total_days INTEGER NOT NULL, -- 총 출석 목표 일수 (예: 30일)
     
     allow_missed_days BOOLEAN NOT NULL DEFAULT FALSE, -- 중간 누락 허용 여부
-        
-    timezone VARCHAR(50) NOT NULL DEFAULT 'Asia/Seoul', -- 출석 기준 타임존
-    
-    reset_time TIME NOT NULL DEFAULT '00:00', -- 08:00 초기화 시간
-    
-    cycle_type VARCHAR(20)
-       CHECK (cycle_type IN ('DAILY','WEEKLY')), -- 24시간, 일주일에 한번
+            
+    -- KST 기준 초기화 시각 (예: 00:00, 08:00)
+    reset_time TIME NOT NULL DEFAULT '00:00', 
+
     
     /* ========================= 
      * 감사 컬럼 
@@ -67,5 +62,5 @@ CREATE TABLE **event_attendance_policy** (
     updated_by BIGINT NOT NULL
 );
 
-COMMENT ON TABLE event_attendance_policy IS '출석 이벤트 기본 정책';
+COMMENT ON TABLE event_platform.event_attendance_policy IS '출석 이벤트 기본 정책 (KST 고정)';
 ```

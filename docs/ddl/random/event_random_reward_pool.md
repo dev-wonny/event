@@ -26,11 +26,11 @@ CREATE TABLE event_platform.**event_random_reward_pool** (
 
     reward_name VARCHAR(100) NOT NULL, -- 보상 이름 (UI 표시용)
     reward_type VARCHAR(20) NOT NULL
-        CHECK (reward_type IN ('POINT', 'COUPON', 'ENTRY', 'NONE')),
         -- POINT: 포인트
         -- COUPON: 쿠폰
         -- ENTRY: 다른 이벤트의 응모권
         -- NONE: 꽝
+        -- ONEMORE: 한번 더
         -- PRODUCT: 사용 안함
 
     /* JSON 금지: 통계/정합성 위해 컬럼화 */

@@ -120,12 +120,10 @@ CREATE TABLE event_attendance_bonus_reward (
         -- 예: 7일, 14일, 30일
 
     milestone_type VARCHAR(20) NOT NULL
-        CHECK (milestone_type IN ('TOTAL','STREAK')),
         -- TOTAL: 누적 출석
         -- STREAK: 연속 출석
         
     payout_rule VARCHAR(20) NOT NULL DEFAULT 'ONCE'
-        CHECK (payout_rule IN ('ONCE', 'REPEATABLE')),
         -- ONCE: 이벤트 전체 1회
         -- REPEATABLE: 조건 재달성 시 반복 지급    
     -- idDuplicateReward -- 중복 지급 여부
@@ -139,21 +137,11 @@ CREATE TABLE event_attendance_bonus_reward (
     
     
     reward_type VARCHAR(20) NOT NULL
-        CHECK (reward_type IN ('POINT', 'COUPON')),
+    -- 'POINT', 'COUPON'
     
     point_amount INTEGER,
     coupon_group_id BIGINT,
-    
-    CONSTRAINT chk_bonus_reward_match
-    CHECK (
-        (reward_type = 'POINT' 
-            AND point_amount IS NOT NULL 
-            AND coupon_group_id IS NULL)
-        OR
-        (reward_type = 'COUPON' 
-            AND coupon_group_id IS NOT NULL 
-            AND point_amount IS NULL)
-    ),
+
     
 
     /* ========================= 
@@ -177,4 +165,18 @@ CREATE INDEX idx_att_bonus_reward_event
 COMMENT ON TABLE event_platform.event_attendance_bonus_reward IS '출석 이벤트 누적/연속 보너스 보상 정의';  
 COMMENT ON TABLE event_attendance_bonus_reward IS '출석 이벤트 누적 보너스 보상';
 
+```
+
+제약사항은 db로하면 느려지기때문에 application에서 처리
+```
+    CONSTRAINT chk_bonus_reward_match
+    CHECK (
+        (reward_type = 'POINT' 
+            AND point_amount IS NOT NULL 
+            AND coupon_group_id IS NULL)
+        OR
+        (reward_type = 'COUPON' 
+            AND coupon_group_id IS NOT NULL 
+            AND point_amount IS NULL)
+    ),
 ```

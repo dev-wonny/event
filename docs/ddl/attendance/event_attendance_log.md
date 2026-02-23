@@ -1,4 +1,4 @@
-## event_attendance_log             -- 출석 행위 로그
+# event_attendance_log             -- 출석 행위 로그
 
 - 출석 시도 기록 (성공 + 실패)
 - 디버깅 / 감사 / 부정행위 추적

@@ -39,14 +39,12 @@ CREATE TABLE event_platform.event_participation_limit_policy (
      
     /* 제한 대상 */
     limit_subject VARCHAR(20) NOT NULL
-        CHECK (limit_subject IN ('USER','GLOBAL')),
         -- USER   : 회원 기준
         -- GLOBAL : 이벤트 전체 기준
      
      
         /* 제한 범위 */
     limit_scope VARCHAR(20) NOT NULL
-        CHECK (limit_scope IN ('USER','DAY','HOUR','ORDER','ROUND','TOTAL')),
         -- USER : 이벤트 전체 기간 회원당
         -- DAY  : 일자 기준 회원당 (자정 초기화)
         -- HOUR : 시간 기준 회원당
@@ -55,7 +53,6 @@ CREATE TABLE event_platform.event_participation_limit_policy (
         -- TOTAL : 이벤트 전체 1000명 제한
         
     limit_metric VARCHAR(20) NOT NULL
-        CHECK (limit_metric IN ('EXECUTION','UNIQUE_MEMBER')),
         -- EXECUTION     : 실행 횟수 기준
         -- UNIQUE_MEMBER : 참여 인원 기준
 

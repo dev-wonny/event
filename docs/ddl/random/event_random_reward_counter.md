@@ -5,6 +5,7 @@
     event_random_reward_pool.**daily_limit** INTEGER,  -- 일일 당첨 제한
     event_random_reward_pool.**total_limit** INTEGER,  -- 전체 당첨 제한
 ```
+에 관한 내용이 있어서 아래처럼 생성됨
 
 ```sql
 CREATE TABLE event_platform.**event_random_reward_counter** (

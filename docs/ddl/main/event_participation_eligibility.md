@@ -17,7 +17,7 @@
 > 
 
 ```sql
-CREATE TABLE event_platform.**event_participation_eligibility** (
+CREATE TABLE event_platform.event_participation_eligibility (
     id BIGSERIAL PRIMARY KEY,
 
     event_id BIGINT NOT NULL

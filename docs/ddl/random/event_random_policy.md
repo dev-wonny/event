@@ -19,29 +19,20 @@ CREATE TABLE event_platform.**event_random_policy** (
         
     game_type VARCHAR(20) 
         -- ROULETTE: 룰렛 게임
-        -- QUIZ: 퀴즈 참여
+        -- LADDER: 사다리 타기
+        -- CARD: 카드 뽑기
+        ---------------------
         -- SCRATCH: 스크래치 카드
         -- SLOT: 슬롯머신
+        ---------------------
+        -- QUIZ: 퀴즈 참여 --> 문제, 정답 필수
         -- FIRST_COME: 선착순
         -- SURVEY: 설문조사
         -- ※ event_type이 'RANDOM_REWARD'일 때만 사용
 
-    /* 당첨 정책 */
-    -- 1️⃣ 중복 당첨 허용 여부
-    allow_duplicate_win BOOLEAN NOT NULL DEFAULT FALSE,
-
-    -- 2️⃣ RETRY 자동 실행 여부
-    -- AUTO: 자동으로 재시도
-    -- MANUAL: 수동으로 재시도
-    retry_mode VARCHAR(20),
-    
-    -- 3️⃣ RETRY 최대 연속 횟수
-    max_retry_count INTEGER,
-    
-    CHECK (
-    (retry_mode IS NULL AND max_retry_count IS NULL)
-    OR
-    (retry_mode IS NOT NULL AND max_retry_count IS NOT NULL)
+        -- todo: reward 세팅 개수
+        
+        
 )
 
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,

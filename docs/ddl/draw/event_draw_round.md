@@ -17,8 +17,7 @@ CREATE TABLE event_platform.event_draw_round (
     /* ========================= 
      * 추첨 상태 
      * ========================= */
-    status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED'
-        CHECK (status IN ('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
+    status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED',
         -- SCHEDULED: 예정됨
         -- IN_PROGRESS: 추첨 진행 중
         -- COMPLETED: 완료됨

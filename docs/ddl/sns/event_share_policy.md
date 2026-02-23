@@ -41,8 +41,6 @@ CREATE TABLE event_platform.event_share_policy (
     updated_by BIGINT NOT NULL
 );
 
-UNIQUE (event_id, member_id, share_token)
-
 COMMENT ON TABLE event_platform.event_share_policy IS
 'SNS 공유 정책 (추가 참여 횟수 및 자동 실행 여부 설정)';
 
