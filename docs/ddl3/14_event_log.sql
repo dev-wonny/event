@@ -1,6 +1,8 @@
 -- =============================================================
 -- [14] event_log
 -- 역할  : 출석·랜덤 이벤트 통합 행위 로그 (append-only)
+--         - 실제 참여 시도만 기록 (CHECK_IN / WIN / LOSE / ALREADY_CHECKED / LIMIT_REJECT / FAILED)
+--         - 기간 외(OUT_OF_PERIOD), 자격 미충족(ELIGIBILITY_REJECT)은 응답만 반환, 로그 미기록
 --         - 출석 로그: attendance_date, total_attendance_count, streak_attendance_count 사용
 --         - 랜덤 로그: trigger_type, reward_pool_id 사용
 --         - 이벤트 유형에 따라 사용하는 컬럼이 달라짐
@@ -18,11 +20,11 @@
 -- id=2, event_id=1, event_type='ATTENDANCE', member_id=10001, action_result='ALREADY_CHECKED',
 --        attendance_date='2026-03-05', failure_reason='이미 출석 완료'
 --
--- [랜덤 BASE 시작]
+-- [랜덤 BASE 당첨]
 -- id=3, event_id=2, event_type='RANDOM', member_id=10001, action_result='WIN',
 --        attendance_date=NULL, trigger_type='BASE', reward_pool_id=2
 --
--- [랜덤 SNS 재도전]
+-- [랜덤 SNS 재도전 당첨]
 -- id=4, event_id=2, event_type='RANDOM', member_id=10001, action_result='WIN',
 --        attendance_date=NULL, trigger_type='SNS_SHARE', reward_pool_id=1
 -- =============================================================
@@ -41,18 +43,19 @@ CREATE TABLE event_platform.event_log (
     /* =========================
      * 행위 결과
      * ========================= */
-    action_result               VARCHAR(30)     NOT NULL,       -- 행위 결과 (아래 값 참고)
+    action_result               VARCHAR(30)     NOT NULL,       -- 실제 참여 시도 결과만 기록
     -- [공통]
-    -- OUT_OF_PERIOD        : 이벤트 기간 외
-    -- ELIGIBILITY_REJECT   : 자격 조건 미충족
     -- LIMIT_REJECT         : 참여 횟수 제한 초과
     -- FAILED               : 시스템 오류
     -- [출석 전용]
     -- CHECK_IN             : 출석 성공
-    -- ALREADY_CHECKED      : 이미 출석(중복)
+    -- ALREADY_CHECKED      : 이미 출석 (중복 시도)
     -- [랜덤 전용]
     -- WIN                  : 보상 당첨
     -- LOSE                 : 꽝
+    --
+    -- ※ 기간 외(OUT_OF_PERIOD), 자격 미충족(ELIGIBILITY_REJECT)은 로그 미기록
+    --   → Application에서 응답만 반환
 
     failure_reason              TEXT,                           -- 실패 사유 상세 설명 (선택, 실패 시만 사용)
 
@@ -86,11 +89,11 @@ CREATE INDEX idx_event_log_attendance_date
     ON event_platform.event_log(event_id, attendance_date)
     WHERE event_type = 'ATTENDANCE' AND action_result = 'CHECK_IN';
 
-COMMENT ON TABLE  event_platform.event_log IS '출석·랜덤 통합 행위 로그 (append-only) - 출석/랜덤 이벤트 유형에 따라 사용 컬럼 다름';
+COMMENT ON TABLE  event_platform.event_log IS '출석·랜덤 통합 행위 로그 (append-only) - 실제 참여 시도만 기록, 기간외/자격미충족은 응답만 반환';
 COMMENT ON COLUMN event_platform.event_log.event_id                 IS 'FK: event.id';
 COMMENT ON COLUMN event_platform.event_log.event_type               IS '이벤트 유형 ATTENDANCE / RANDOM (조회 최적화를 위한 비정규화)';
 COMMENT ON COLUMN event_platform.event_log.member_id                IS '행위를 수행한 회원 ID';
-COMMENT ON COLUMN event_platform.event_log.action_result            IS '행위 결과: CHECK_IN/ALREADY_CHECKED(출석) | WIN/LOSE(랜덤) | 공통(OUT_OF_PERIOD/ELIGIBILITY_REJECT/LIMIT_REJECT/FAILED)';
+COMMENT ON COLUMN event_platform.event_log.action_result            IS '참여 시도 결과: CHECK_IN/ALREADY_CHECKED(출석) | WIN/LOSE(랜덤) | LIMIT_REJECT/FAILED(공통) ※ OUT_OF_PERIOD/ELIGIBILITY_REJECT는 미기록';
 COMMENT ON COLUMN event_platform.event_log.failure_reason           IS '실패 시 상세 사유 (선택)';
 COMMENT ON COLUMN event_platform.event_log.attendance_date          IS '[ATTENDANCE 전용] 출석 기준 날짜 (KST)';
 COMMENT ON COLUMN event_platform.event_log.total_attendance_count   IS '[ATTENDANCE 전용] 출석 성공 시 누적 출석 수 스냅샷';
