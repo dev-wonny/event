@@ -6,15 +6,14 @@
 --   1. 공유자(sharer_member_id)가 공유 버튼 클릭 → share_token 발급
 --   2. 공유자가 임의 채널로 URL 공유 (token이 URL에 포함됨)
 --   3. 수신자가 링크 클릭 → 서버에 share_token 전달 → 이 테이블에 INSERT
---   4. 참여권 계산:
---      COUNT(*) WHERE event_id=? AND share_token=? >= max_share_credit?
+--   4. 잔여 참여권 계산:
+--      COUNT(*) WHERE event_id=? AND sharer_member_id=? >= max_share_credit?
 --      → 아니면 공유자에게 랜덤 1회 추가 실행 권한 부여
 --
 -- 관계  :
---   - event.id → event_share_log.event_id (1:N)
+--   - event_share_policy.event_id → event_share_log.event_id (1:N)
+--     SNS 공유 정책이 있는 랜덤 이벤트에만 로그 생성 가능
 --
--- ※ append-only: INSERT만 발생, UPDATE 없음
--- ※ UNIQUE 제약 없음: 여러 사람이 같은 token을 클릭할 수 있음
 -- =============================================================
 -- 예시 데이터 (event_id=2, max_share_credit=2)
 -- ─ 공유자: member_id=10001, share_token='tok-A' 발급 후 카카오 공유
@@ -32,7 +31,9 @@ CREATE TABLE event_platform.event_share_log (
      * 이벤트 식별
      * ========================= */
     event_id            BIGINT          NOT NULL
-        REFERENCES event_platform.event(id) ON DELETE CASCADE,  -- FK: event.id
+        REFERENCES event_platform.event_share_policy(event_id) ON DELETE CASCADE,
+        -- FK: event_share_policy.event_id
+        -- SNS 공유 정책이 존재하는 랜덤 이벤트에만 로그 생성 가능
 
     /* =========================
      * 공유 토큰 (공유자 식별)
@@ -72,7 +73,7 @@ CREATE INDEX idx_share_log_sharer
     ON event_platform.event_share_log(event_id, sharer_member_id, created_at);
 
 COMMENT ON TABLE  event_platform.event_share_log IS 'SNS 공유 링크 클릭 로그 - 누군가 공유 링크를 클릭할 때마다 INSERT (append-only)';
-COMMENT ON COLUMN event_platform.event_share_log.event_id         IS 'FK: event.id';
+COMMENT ON COLUMN event_platform.event_share_log.event_id         IS 'FK: event_share_policy.event_id - SNS 공유 정책이 있는 랜덤 이벤트에만 로그 생성 가능';
 COMMENT ON COLUMN event_platform.event_share_log.share_token      IS '공유자의 JWT 토큰 - 같은 token이 여러 row 가능 (클릭자마다 행 생성)';
 COMMENT ON COLUMN event_platform.event_share_log.sharer_member_id IS '공유 링크를 발행한 회원 ID (참여권 수혜자)';
 COMMENT ON COLUMN event_platform.event_share_log.visitor_member_id IS '링크를 클릭한 회원 ID (NULL=비회원)';
