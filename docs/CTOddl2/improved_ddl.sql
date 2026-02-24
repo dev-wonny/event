@@ -450,3 +450,121 @@ COMMENT ON COLUMN event_sns_share_log.shared_at IS '공유 실행 일시';
 COMMENT ON COLUMN event_sns_share_log.is_success IS '공유 성공 여부';
 COMMENT ON COLUMN event_sns_share_log.created_at IS '등록 일시';
 COMMENT ON COLUMN event_sns_share_log.created_by IS '등록자 식별자';
+
+-- =============================================================
+-- ★ 확장 정책 A: 랜덤 추첨 정책
+-- =============================================================
+
+-- [A-1] event_draw_round에 추첨 방식 컬럼 추가
+-- draw_method: RANDOM(단순 무작위) | WEIGHTED(가중치 기반) | PROBABILITY(확률 기반)
+-- 기존 테이블에 ALTER로 추가하거나 초기 DDL에 포함 가능
+ALTER TABLE event_draw_round
+    ADD COLUMN draw_method     VARCHAR(20) NOT NULL DEFAULT 'RANDOM',
+    ADD COLUMN draw_seed       VARCHAR(100),
+    ADD COLUMN draw_batch_size INTEGER;
+
+COMMENT ON COLUMN event_draw_round.draw_method IS '추첨 방식 코드 code_group(EVENT.DRAW_METHOD: RANDOM, WEIGHTED, PROBABILITY)';
+COMMENT ON COLUMN event_draw_round.draw_seed IS '추첨 재현용 시드값 (감사/검증 목적, 예: UUID or timestamp 기반)';
+COMMENT ON COLUMN event_draw_round.draw_batch_size IS '한 회차 최대 추첨 처리 건수 (배치 분할 추첨 시 사용)';
+
+-- [A-2] event_prize_probability (경품별 당첨 확률 정책)
+-- draw_method = PROBABILITY 일 때 이 테이블로 확률을 제어
+-- draw_id NULL → 전체 회차 공통 적용, NOT NULL → 특정 회차 한정 적용
+CREATE TABLE event_prize_probability (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    event_id    BIGINT NOT NULL REFERENCES event(id),
+    prize_id    BIGINT NOT NULL REFERENCES event_prize(id),
+    draw_id     BIGINT REFERENCES event_draw_round(id),
+    probability NUMERIC(5,2) NOT NULL,
+    weight      INTEGER,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMP NOT NULL,
+    created_by  BIGINT NOT NULL,
+    updated_at  TIMESTAMP NOT NULL,
+    updated_by  BIGINT NOT NULL
+);
+
+COMMENT ON TABLE event_prize_probability IS '이벤트 경품 당첨 확률 정책 테이블';
+COMMENT ON COLUMN event_prize_probability.id IS '확률 정책 식별자(PK)';
+COMMENT ON COLUMN event_prize_probability.event_id IS '이벤트 식별자(FK)';
+COMMENT ON COLUMN event_prize_probability.prize_id IS '이벤트 경품 식별자(FK)';
+COMMENT ON COLUMN event_prize_probability.draw_id IS '적용 추첨 회차 식별자(FK, NULL: 전체 회차 공통 적용)';
+COMMENT ON COLUMN event_prize_probability.probability IS '당첨 확률(%, 예: 5.00 = 5%)';
+COMMENT ON COLUMN event_prize_probability.weight IS '가중치 기반 추첨용 값(draw_method=WEIGHTED 일 때 사용)';
+COMMENT ON COLUMN event_prize_probability.is_active IS '확률 정책 사용 여부';
+COMMENT ON COLUMN event_prize_probability.created_at IS '등록 일시';
+COMMENT ON COLUMN event_prize_probability.created_by IS '등록자 식별자';
+COMMENT ON COLUMN event_prize_probability.updated_at IS '최종 수정 일시';
+COMMENT ON COLUMN event_prize_probability.updated_by IS '최종 수정자 식별자';
+
+-- =============================================================
+-- ★ 확장 정책 B: 출석 정책
+-- =============================================================
+
+-- [B-1] event_attendance_policy (출석 보상 정책)
+-- 이벤트 타입이 ATTENDANCE 일 때 이 테이블로 보상 조건을 정의
+-- 보상 유형: TOTAL(누적 출席), STREAK(연속 출席), MILESTONE(특정일 달성)
+CREATE TABLE event_attendance_policy (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    event_id            BIGINT NOT NULL REFERENCES event(id),
+    policy_no           INTEGER NOT NULL,
+    reward_type         VARCHAR(20) NOT NULL,
+    required_days       INTEGER NOT NULL,
+    is_streak_required  BOOLEAN NOT NULL DEFAULT FALSE,
+    prize_id            BIGINT REFERENCES event_prize(id),
+    reward_point        INTEGER,
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    is_deleted          BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMP NOT NULL,
+    created_by          BIGINT NOT NULL,
+    updated_at          TIMESTAMP NOT NULL,
+    updated_by          BIGINT NOT NULL,
+    deleted_at          TIMESTAMP,
+    UNIQUE (event_id, policy_no)
+);
+
+COMMENT ON TABLE event_attendance_policy IS '이벤트 출석 보상 정책 테이블';
+COMMENT ON COLUMN event_attendance_policy.id IS '출석 정책 식별자(PK)';
+COMMENT ON COLUMN event_attendance_policy.event_id IS '이벤트 식별자(FK)';
+COMMENT ON COLUMN event_attendance_policy.policy_no IS '이벤트 내 출석 정책 번호(업무 식별자)';
+COMMENT ON COLUMN event_attendance_policy.reward_type IS '보상 유형 code_group(EVENT.ATTENDANCE_REWARD: TOTAL, STREAK, MILESTONE)';
+COMMENT ON COLUMN event_attendance_policy.required_days IS '보상 조건 출석일 수 (예: 7 → 7일 출석 시 보상)';
+COMMENT ON COLUMN event_attendance_policy.is_streak_required IS '연속 출석 조건 여부 (TRUE: 연속, FALSE: 누적)';
+COMMENT ON COLUMN event_attendance_policy.prize_id IS '보상 경품 식별자(FK, NULL: 포인트 보상)';
+COMMENT ON COLUMN event_attendance_policy.reward_point IS '보상 포인트 (prize_id NULL 시 사용)';
+COMMENT ON COLUMN event_attendance_policy.is_active IS '정책 사용 여부';
+COMMENT ON COLUMN event_attendance_policy.is_deleted IS '논리 삭제 여부';
+COMMENT ON COLUMN event_attendance_policy.created_at IS '등록 일시';
+COMMENT ON COLUMN event_attendance_policy.created_by IS '등록자 식별자';
+COMMENT ON COLUMN event_attendance_policy.updated_at IS '최종 수정 일시';
+COMMENT ON COLUMN event_attendance_policy.updated_by IS '최종 수정자 식별자';
+COMMENT ON COLUMN event_attendance_policy.deleted_at IS '논리 삭제 일시';
+
+-- [B-2] event_attendance_log (회원별 출석 이력)
+-- 하루 1회만 출석 가능: UNIQUE (event_id, member_id, attend_date)
+-- is_rewarded: 해당 출석으로 보상이 지급되었는지 (MILESTONE 도달 시 TRUE)
+CREATE TABLE event_attendance_log (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    event_id        BIGINT NOT NULL REFERENCES event(id),
+    member_id       BIGINT NOT NULL,
+    attend_date     DATE NOT NULL,
+    streak_count    INTEGER NOT NULL DEFAULT 1,
+    total_count     INTEGER NOT NULL DEFAULT 1,
+    is_rewarded     BOOLEAN NOT NULL DEFAULT FALSE,
+    policy_id       BIGINT REFERENCES event_attendance_policy(id),
+    created_at      TIMESTAMP NOT NULL,
+    created_by      BIGINT NOT NULL,
+    UNIQUE (event_id, member_id, attend_date)
+);
+
+COMMENT ON TABLE event_attendance_log IS '이벤트 출석 이력 테이블';
+COMMENT ON COLUMN event_attendance_log.id IS '출석 이력 식별자(PK)';
+COMMENT ON COLUMN event_attendance_log.event_id IS '이벤트 식별자(FK)';
+COMMENT ON COLUMN event_attendance_log.member_id IS '출석 회원 식별자';
+COMMENT ON COLUMN event_attendance_log.attend_date IS '출석 일자(1일 1회 제한 기준)';
+COMMENT ON COLUMN event_attendance_log.streak_count IS '현재 연속 출석일 수 (전일 미출석 시 1로 초기화)';
+COMMENT ON COLUMN event_attendance_log.total_count IS '이벤트 기간 내 누적 출석일 수';
+COMMENT ON COLUMN event_attendance_log.is_rewarded IS '보상 지급 여부 (정책 조건 달성 시 TRUE)';
+COMMENT ON COLUMN event_attendance_log.policy_id IS '적용된 출석 보상 정책 식별자(FK, NULL: 보상 미발생)';
+COMMENT ON COLUMN event_attendance_log.created_at IS '출석 등록 일시';
+COMMENT ON COLUMN event_attendance_log.created_by IS '등록자 식별자';
