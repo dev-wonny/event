@@ -93,25 +93,29 @@ sequenceDiagram
 
     User->>App: 출석 버튼 클릭
 
-    App->>App: 기간 체크
-    alt 기간 외 (OUT_OF_PERIOD)
-        App-->>User: 오류 응답 반환 (로그 미기록)
+    App->>App: 기간 체크 (event.start_at ~ end_at)
+    alt 기간 외
+        App-->>User: 응답 반환 (로그 미기록)
     else 기간 내
-        App->>DB: 자격 조건 체크 (event_participation_eligibility)
-        alt 자격 미충족 (ELIGIBILITY_REJECT)
-            App-->>User: 오류 응답 반환 (로그 미기록)
+        App->>DB: SELECT event_participation_eligibility WHERE event_id=?
+        alt 자격 미충족
+            App-->>User: 응답 반환 (로그 미기록)
         else 자격 통과
-            App->>DB: 중복 출석 체크 (event_log)
+            App->>DB: SELECT event_participant WHERE event_id=? AND member_id=?
+            alt 신규 참여자 (처음 자격 통과)
+                App->>DB: INSERT event_participant (event_id, member_id)
+            end
+            App->>DB: SELECT event_log WHERE event_id=? AND member_id=? AND attendance_date=today
             alt 이미 출석 (ALREADY_CHECKED)
-                App->>DB: event_log INSERT (ALREADY_CHECKED)
-                App-->>User: 중복 출석 응답 반환
+                App->>DB: INSERT event_log (ALREADY_CHECKED, attendance_date)
+                App-->>User: 중복 출석 응답
             else 출석 성공
-                App->>DB: event_log INSERT (CHECK_IN, total/streak count 스냅샷)
-                App->>DB: event_reward_grant INSERT (일일 보상 PENDING)
+                App->>DB: INSERT event_log (CHECK_IN, attendance_date, total_count, streak_count)
+                App->>DB: INSERT event_reward_grant (일일 보상, status=PENDING)
                 opt 누적/연속 보너스 조건 달성
-                    App->>DB: event_reward_grant INSERT (보너스 PENDING)
+                    App->>DB: INSERT event_reward_grant (보너스 보상, status=PENDING)
                 end
-                App-->>User: 출석 완료 + 보상 정보 반환
+                App-->>User: 출석 성공 + 보상 정보 반환
             end
         end
     end
@@ -125,30 +129,36 @@ sequenceDiagram
     participant App
     participant DB
 
-    User->>App: 참여 버튼 클릭 (trigger_type 결정)
+    User->>App: 참여 버튼 클릭 (trigger_type: BASE or SNS_SHARE)
 
-    App->>App: 기간 체크
-    alt 기간 외 (OUT_OF_PERIOD)
-        App-->>User: 오류 응답 반환 (로그 미기록)
+    App->>App: 기간 체크 (event.start_at ~ end_at)
+    alt 기간 외
+        App-->>User: 응답 반환 (로그 미기록)
     else 기간 내
-        App->>DB: 자격 조건 체크 (event_participation_eligibility)
-        alt 자격 미충족 (ELIGIBILITY_REJECT)
-            App-->>User: 오류 응답 반환 (로그 미기록)
+        App->>DB: SELECT event_participation_eligibility WHERE event_id=?
+        alt 자격 미충족
+            App-->>User: 응답 반환 (로그 미기록)
         else 자격 통과
-            App->>DB: 횟수 제한 체크 (event_participation_limit_policy)
+            App->>DB: SELECT event_participant WHERE event_id=? AND member_id=?
+            alt 신규 참여자
+                App->>DB: INSERT event_participant (event_id, member_id)
+            end
+            App->>DB: SELECT event_participation_limit_policy WHERE event_id=?
+            App->>DB: SELECT COUNT(*) FROM event_log WHERE event_id=? AND member_id=? AND trigger_type=BASE AND DATE=today
             alt 횟수 초과 (LIMIT_REJECT)
-                App->>DB: event_log INSERT (LIMIT_REJECT)
-                App-->>User: 제한 초과 응답 반환
+                App->>DB: INSERT event_log (LIMIT_REJECT, trigger_type)
+                App-->>User: 제한 초과 응답
             else 추첨 실행
-                App->>DB: reward_pool 조회 + counter 확인
+                App->>DB: SELECT event_random_reward_pool WHERE event_id=?
+                App->>DB: SELECT event_random_reward_counter WHERE event_id=?
                 App->>App: 확률 계산 → 보상 추첨
-                alt 꽝
-                    App->>DB: event_log INSERT (LOSE, reward_pool_id=꽝 풀)
+                alt 꽝 (LOSE)
+                    App->>DB: INSERT event_log (LOSE, reward_pool_id=꽝풀id, trigger_type)
                     App-->>User: 꽝 결과 반환
-                else 당첨
-                    App->>DB: event_log INSERT (WIN, reward_pool_id=당첨 풀)
-                    App->>DB: event_random_reward_counter UPDATE (+1)
-                    App->>DB: event_reward_grant INSERT (보상 PENDING)
+                else 당첨 (WIN)
+                    App->>DB: INSERT event_log (WIN, reward_pool_id=당첨풀id, trigger_type)
+                    App->>DB: UPDATE event_random_reward_counter SET daily_count+1, total_count+1
+                    App->>DB: INSERT event_reward_grant (보상, status=PENDING)
                     App-->>User: 당첨 결과 + 보상 정보 반환
                 end
             end
