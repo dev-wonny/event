@@ -1,24 +1,36 @@
 -- =============================================================
 -- [15] event_reward_allocation
--- 역할  : 보상 지급 내역 - 출석·랜덤 이벤트 모두 이 테이블에 기록
---         외부 시스템(포인트 API, 쿠폰 API) 연동 재시도 상태 관리 포함
+-- 역할  : 보상 지급 의뢰 기록 (append-only)
+--         "어떤 보상을 큐에 넣었다"는 사실 + 의뢰 시점 정책 스냅샷을 함께 기록
+--         실제 지급 성공/실패 상태는 외부 Queue(SQS)에서 관리
 -- 관계  :
---   - event.id → event_reward_allocation.event_id (1:N)
---   - event_entry.id → event_reward_allocation.event_entry_id (1:1)
---   - event_reward_catalog.id → event_reward_allocation.reward_catalog_id (N:1)
+--   - event.id                       → event_reward_allocation.event_id (1:N)
+--   - event_entry.id                 → event_reward_allocation.event_entry_id (1:1)
+--   - event_attendance_daily_reward  → daily_reward_id (DAILY 전용, FK 스냅샷)
+--   - event_attendance_bonus_reward  → bonus_reward_id (BONUS 전용, FK 스냅샷)
+--   - event_random_reward_pool       → reward_pool_id  (RANDOM 전용, FK 스냅샷)
 -- =============================================================
 -- 예시 데이터
+--
 -- [출석 일일 보상]
--- id=1, event_id=1, event_type='ATTENDANCE', reward_kind='DAILY',   member_id=10001,
---        reward_type='POINT', point_amount=30, reward_status='SUCCESS', idempotency_key='att-1-10001-2026-03-05-DAILY'
+-- id=1, event_id=1, event_type='ATTENDANCE', reward_kind='DAILY', member_id=10001,
+--        daily_reward_id=1,                               ← 어떤 일일 보상 정책이었는지
+--        reward_type='POINT', point_amount=30,            ← 정책에서 복사한 스냅샷
+--        idempotency_key='att-1-10001-2026-03-05-DAILY'
 --
 -- [출석 보너스 보상]
--- id=2, event_id=1, event_type='ATTENDANCE', reward_kind='BONUS',   member_id=10001,
---        reward_type='COUPON', coupon_group_id=400, reward_status='SUCCESS', idempotency_key='att-1-10001-2026-03-07-BONUS'
+-- id=2, event_id=1, event_type='ATTENDANCE', reward_kind='BONUS', member_id=10001,
+--        bonus_reward_id=2,                              ← 어떤 마일스톤 보너스 정책이었는지
+--        milestone_type='TOTAL', milestone_count=7,      ← 트리거된 마일스톤 스냅샷
+--        reward_type='COUPON', coupon_group_id=400,      ← 정책에서 복사한 스냅샷
+--        idempotency_key='att-1-10001-2026-03-07-BONUS-7'
 --
 -- [랜덤 당첨 보상]
--- id=3, event_id=2, event_type='RANDOM',     reward_kind='RANDOM',  member_id=10001,
---        reward_type='POINT', point_amount=100, reward_status='SUCCESS', idempotency_key='rand-2-10001-log-3'
+-- id=3, event_id=2, event_type='RANDOM', reward_kind='RANDOM', member_id=10001,
+--        reward_pool_id=2,                               ← 어떤 확률 풀이었는지
+--        probability_weight=25,                          ← 당시 가중치 스냅샷
+--        reward_type='POINT', point_amount=100,          ← 정책에서 복사한 스냅샷
+--        idempotency_key='rand-2-10001-entry-3'
 -- =============================================================
 
 CREATE TABLE event_platform.event_reward_allocation (
@@ -35,22 +47,41 @@ CREATE TABLE event_platform.event_reward_allocation (
     /* =========================
      * 행위 로그 참조 (1:1)
      * ========================= */
-    event_entry_id                BIGINT          NOT NULL UNIQUE
-        REFERENCES event_platform.event_entry(id),                -- FK: event_entry.id (1 로그 = 최대 1 보상지급)
+    event_entry_id              BIGINT          NOT NULL UNIQUE
+        REFERENCES event_platform.event_entry(id),             -- FK: event_entry.id (1 행위 = 최대 1 보상 의뢰)
 
     /* =========================
      * 보상 구분
      * ========================= */
-    reward_kind                 VARCHAR(20)     NOT NULL,       -- DAILY(출석일일보상) / BONUS(출석보너스보상) / RANDOM(랜덤보상)
+    reward_kind                 VARCHAR(20)     NOT NULL,       -- DAILY / BONUS / RANDOM
+
+    /* -------------------------------------------------------
+     * [DAILY 전용] 일일 보상 정책 참조
+     * ------------------------------------------------------- */
+    daily_reward_id             BIGINT
+        REFERENCES event_platform.event_attendance_daily_reward(id),
+        -- FK: event_attendance_daily_reward.id (DAILY일 때만 NOT NULL)
+
+    /* -------------------------------------------------------
+     * [BONUS 전용] 보너스 보상 정책 참조 + 마일스톤 스냅샷
+     * ------------------------------------------------------- */
+    bonus_reward_id             BIGINT
+        REFERENCES event_platform.event_attendance_bonus_reward(id),
+        -- FK: event_attendance_bonus_reward.id (BONUS일 때만 NOT NULL)
+    milestone_type              VARCHAR(20),                    -- 트리거된 마일스톤 유형 스냅샷: TOTAL / STREAK
+    milestone_count             INTEGER,                        -- 트리거된 마일스톤 기준값 스냅샷: 예) 7, 15, 30
+
+    /* -------------------------------------------------------
+     * [RANDOM 전용] 보상 풀 참조 + 확률 스냅샷
+     * ------------------------------------------------------- */
+    reward_pool_id              BIGINT
+        REFERENCES event_platform.event_random_reward_pool(id),
+        -- FK: event_random_reward_pool.id (RANDOM일 때만 NOT NULL)
+    probability_weight          INTEGER,                        -- 당첨 시점 확률 가중치 스냅샷 (풀 변경 대비 이력 보존)
 
     /* =========================
-     * 보상 카탈로그 참조 (선택)
-     * ========================= */
-    reward_catalog_id           BIGINT
-        REFERENCES event_platform.event_reward_catalog(id),     -- FK: event_reward_catalog.id (선택)
-
-    /* =========================
-     * 보상 스냅샷 (지급 시점 기준 고정)
+     * 보상 스냅샷 (의뢰 시점 기준 고정)
+     * 출처 테이블의 reward_catalog 정보를 의뢰 시점에 복사
      * ========================= */
     reward_type                 VARCHAR(20)     NOT NULL,       -- POINT / COUPON / PRODUCT / NONE / ONEMORE
     point_amount                INTEGER,                        -- POINT 전용: 지급 포인트 수량 스냅샷
@@ -58,45 +89,36 @@ CREATE TABLE event_platform.event_reward_allocation (
     external_ref_id             BIGINT,                         -- PRODUCT 전용: 외부 상품 ID 스냅샷
 
     /* =========================
-     * 외부 연동 추적
+     * 멱등성 키
      * ========================= */
-    idempotency_key             VARCHAR(120)    NOT NULL,       -- 외부 API 중복 호출 방지 키 (멱등성 보장)
-    external_transaction_id     VARCHAR(120),                   -- 외부 포인트·쿠폰 시스템 트랜잭션 ID
-
+    idempotency_key             VARCHAR(120)    NOT NULL,       -- Queue 중복 발행 방지 키
 
     /* =========================
-     * 감사 정보
+     * 감사 정보 (append-only)
      * ========================= */
     created_at                  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at                  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT uq_reward_grant_idempotency UNIQUE (idempotency_key)
+    CONSTRAINT uq_reward_allocation_idempotency UNIQUE (idempotency_key)
 );
 
-CREATE INDEX idx_reward_grant_event_member
+CREATE INDEX idx_reward_allocation_event_member
     ON event_platform.event_reward_allocation(event_id, member_id, created_at DESC);
 
-CREATE INDEX idx_reward_grant_retry_queue
-    ON event_platform.event_reward_allocation(reward_status, next_retry_at)
-    WHERE reward_status IN ('PENDING', 'FAILED');
-
-COMMENT ON TABLE  event_platform.event_reward_allocation IS '보상 지급 내역 - 출석·랜덤 이벤트 통합 (외부 API 재시도 상태 관리 포함)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.event_id               IS 'FK: event.id';
-COMMENT ON COLUMN event_platform.event_reward_allocation.event_type             IS '이벤트 유형 ATTENDANCE/RANDOM (비정규화, 조회 최적화)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.member_id              IS '보상 수령 회원 ID';
-COMMENT ON COLUMN event_platform.event_reward_allocation.event_entry_id           IS 'FK: event_entry.id - 1 로그 행위당 최대 1개 보상지급 (UNIQUE)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.reward_kind            IS 'DAILY=출석 일일보상, BONUS=출석 보너스보상, RANDOM=랜덤 당첨보상';
-COMMENT ON COLUMN event_platform.event_reward_allocation.reward_catalog_id      IS 'FK: event_reward_catalog.id (선택)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.reward_type            IS 'POINT / COUPON / PRODUCT / NONE / ONEMORE';
-COMMENT ON COLUMN event_platform.event_reward_allocation.point_amount           IS 'POINT 전용 지급 포인트 (지급 시점 스냅샷)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.coupon_group_id        IS 'COUPON 전용 쿠폰 그룹 ID (지급 시점 스냅샷)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.external_ref_id        IS 'PRODUCT 전용 외부 상품 ID (지급 시점 스냅샷)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.reward_status          IS 'PENDING=대기, PROCESSING=처리중, SUCCESS=성공, FAILED=실패, CANCELLED=취소';
-COMMENT ON COLUMN event_platform.event_reward_allocation.retry_count            IS '외부 API 재시도 횟수';
-COMMENT ON COLUMN event_platform.event_reward_allocation.next_retry_at          IS '다음 재시도 예정 시각 (PENDING/FAILED 상태에서만 사용)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.idempotency_key        IS '외부 API 중복 호출 방지 멱등성 키 (UNIQUE)';
-COMMENT ON COLUMN event_platform.event_reward_allocation.external_transaction_id IS '외부 포인트·쿠폰 시스템이 반환한 트랜잭션 ID';
-COMMENT ON COLUMN event_platform.event_reward_allocation.error_code             IS '외부 API 오류 코드';
-COMMENT ON COLUMN event_platform.event_reward_allocation.error_message          IS '외부 API 오류 메시지 상세';
-COMMENT ON COLUMN event_platform.event_reward_allocation.requested_at           IS '보상 지급 최초 요청 일시';
-COMMENT ON COLUMN event_platform.event_reward_allocation.processed_at           IS '보상 지급 완료 또는 최종 실패 처리 일시';
+COMMENT ON TABLE  event_platform.event_reward_allocation IS '보상 지급 의뢰 기록 (append-only) - 큐 발행 사실 + 의뢰 시점 정책 스냅샷, 지급 상태는 외부 Queue에서 관리';
+COMMENT ON COLUMN event_platform.event_reward_allocation.event_id           IS 'FK: event.id';
+COMMENT ON COLUMN event_platform.event_reward_allocation.event_type         IS '이벤트 유형 ATTENDANCE/RANDOM (비정규화, 조회 최적화)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.member_id          IS '보상 수령 회원 ID';
+COMMENT ON COLUMN event_platform.event_reward_allocation.event_entry_id     IS 'FK: event_entry.id - 1 행위당 최대 1개 보상 의뢰 (UNIQUE)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_kind        IS 'DAILY=출석 일일보상, BONUS=출석 보너스보상, RANDOM=랜덤 당첨보상';
+COMMENT ON COLUMN event_platform.event_reward_allocation.daily_reward_id    IS '[DAILY 전용] FK: event_attendance_daily_reward.id - 어떤 일일 보상 정책에서 발생했는지 이력';
+COMMENT ON COLUMN event_platform.event_reward_allocation.bonus_reward_id    IS '[BONUS 전용] FK: event_attendance_bonus_reward.id - 어떤 마일스톤 보너스 정책에서 발생했는지 이력';
+COMMENT ON COLUMN event_platform.event_reward_allocation.milestone_type     IS '[BONUS 전용] 트리거 마일스톤 유형 스냅샷: TOTAL(누적) / STREAK(연속)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.milestone_count    IS '[BONUS 전용] 트리거 마일스톤 기준값 스냅샷 (예: 7일, 15일)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_pool_id     IS '[RANDOM 전용] FK: event_random_reward_pool.id - 당첨된 보상 풀 이력';
+COMMENT ON COLUMN event_platform.event_reward_allocation.probability_weight IS '[RANDOM 전용] 당첨 시점 확률 가중치 스냅샷 (풀 변경 이후에도 이력 보존)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_type        IS 'POINT / COUPON / PRODUCT / NONE / ONEMORE (의뢰 시점 reward_catalog 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.point_amount       IS 'POINT 전용 지급 포인트 (의뢰 시점 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.coupon_group_id    IS 'COUPON 전용 쿠폰 그룹 ID (의뢰 시점 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.external_ref_id   IS 'PRODUCT 전용 외부 상품 ID (의뢰 시점 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.idempotency_key    IS 'Queue 중복 발행 방지 멱등성 키 (UNIQUE)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.created_at         IS '보상 의뢰(큐 발행) 일시 (append-only, 수정 없음)';

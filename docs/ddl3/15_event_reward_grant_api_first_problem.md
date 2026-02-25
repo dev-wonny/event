@@ -5,7 +5,7 @@
 ```
 1. INSERT event_entry (행위 기록)
 2. 외부 API 호출 → 성공 시
-3. INSERT event_reward_allocation (SUCCESS)
+3. INSERT event_reward_grant (SUCCESS)
 ```
 
 ---
@@ -15,7 +15,7 @@
 ```
 1. INSERT event_entry          ✅
 2. 외부 포인트 API 호출       ✅ (포인트 실제 지급됨)
-3. INSERT event_reward_allocation ❌ (DB 장애 / 네트워크 순단)
+3. INSERT event_reward_grant ❌ (DB 장애 / 네트워크 순단)
 
 결과:
   - 고객: 포인트 받음
@@ -59,7 +59,7 @@
                  ┌──────────────────────────────────┐
                  │                                  │
 1. INSERT event_entry          같은 DB 트랜잭션        │
-2. INSERT event_reward_allocation (PENDING)              │
+2. INSERT event_reward_grant (PENDING)              │
                  │                                  │
                  └──────────────────────────────────┘
 
@@ -78,11 +78,11 @@
 
 ## 결론
 
-`event_reward_allocation`의 PENDING 선 INSERT는 **Outbox Pattern**의 핵심입니다.
+`event_reward_grant`의 PENDING 선 INSERT는 **Outbox Pattern**의 핵심입니다.
 
 > "외부 API를 신뢰하지 말고, DB에 의도를 먼저 기록하라."
 
-API 호출 결과와 무관하게 `event_reward_allocation`에 **지급 의뢰 사실**이 남아있어야
+API 호출 결과와 무관하게 `event_reward_grant`에 **지급 의뢰 사실**이 남아있어야
 - 재시도 배치가 작동하고
 - 운영 감사가 가능하며
 - 이중 지급이 방지됩니다.

@@ -26,8 +26,8 @@
   ├─ 이미 출석         → 응답만 반환 (미기록)
   └─ 출석 성공
        → event_entry INSERT (CHECK_IN, attendance_date, total_count, streak_count)
-       → event_reward_allocation INSERT (일일 보상 PENDING)
-       → 누적/연속 조건 달성 시 event_reward_allocation INSERT (보너스 PENDING)
+       → event_reward_allocation INSERT
+       → 누적/연속 조건 달성 시 event_reward_allocation INSERT
 ```
 
 ### 출석 성공 시 저장 예시
@@ -56,7 +56,7 @@ trigger_type=NULL, reward_pool_id=NULL
        ├─ 꽝 (LOSE)  → event_entry INSERT (LOSE, reward_pool_id, trigger_type)
        └─ 당첨 (WIN) → event_entry INSERT (WIN, reward_pool_id, trigger_type)
                     → event_random_reward_counter UPDATE (+1)
-                    → event_reward_allocation INSERT (보상 PENDING)
+                    → event_reward_allocation INSERT
 ```
 
 ### trigger_type 구분
