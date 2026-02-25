@@ -186,7 +186,7 @@ erDiagram
         TIMESTAMP created_at "클릭 발생 일시"
     }
 
-    event_log {
+    event_entry {
         BIGSERIAL id PK
         BIGINT event_id FK "FK to event.id"
         VARCHAR event_type "ATTENDANCE or RANDOM 비정규화"
@@ -201,12 +201,12 @@ erDiagram
         TIMESTAMP created_at "행위 발생 일시"
     }
 
-    event_reward_grant {
+    event_reward_allocation {
         BIGSERIAL id PK
         BIGINT event_id FK "FK to event.id"
         VARCHAR event_type "ATTENDANCE or RANDOM 비정규화"
         BIGINT member_id "보상 수령 회원 ID"
-        BIGINT event_log_id FK "FK to event_log.id 로그당 최대 1보상 UNIQUE"
+        BIGINT event_entry_id FK "FK to event_entry.id 로그당 최대 1보상 UNIQUE"
         BIGINT reward_catalog_id FK "FK to event_reward_catalog.id 선택"
         VARCHAR reward_kind "DAILY or BONUS or RANDOM 보상 구분"
         VARCHAR reward_type "POINT or COUPON or PRODUCT or NONE or ONEMORE"
@@ -235,14 +235,14 @@ erDiagram
     event ||--o{ event_participant : "1 to N"
     event ||--o{ event_participant_block : "1 to N"
     event ||--o{ event_share_log : "1 to N"
-    event ||--o{ event_log : "1 to N"
-    event ||--o{ event_reward_grant : "1 to N"
+    event ||--o{ event_entry : "1 to N"
+    event ||--o{ event_reward_allocation : "1 to N"
     event_reward_catalog ||--o| event_attendance_daily_reward : "1 to 0~1"
     event_reward_catalog ||--o{ event_attendance_bonus_reward : "1 to 0~N"
     event_reward_catalog ||--o{ event_random_reward_pool : "1 to 0~N"
-    event_reward_catalog ||--o{ event_reward_grant : "1 to 0~N"
+    event_reward_catalog ||--o{ event_reward_allocation : "1 to 0~N"
     event_random_policy ||--o| event_share_policy : "1 to 0~1 SNS 사용시만"
     event_random_reward_pool ||--|| event_random_reward_counter : "1 to 1"
-    event_random_reward_pool ||--o{ event_log : "1 to 0~N WIN LOSE 로그"
-    event_log ||--o| event_reward_grant : "1 to 0~1 UNIQUE"
+    event_random_reward_pool ||--o{ event_entry : "1 to 0~N WIN LOSE 로그"
+    event_entry ||--o| event_reward_allocation : "1 to 0~1 UNIQUE"
 ```

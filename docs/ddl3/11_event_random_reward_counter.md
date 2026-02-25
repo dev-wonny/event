@@ -41,9 +41,9 @@ WHERE reward_pool_id = ?;
    ├── 초과 → LIMIT_REJECT (당첨 취소)
    └── 정상 → 다음 단계
 
-3. event_log INSERT (WIN + reward_pool_id 기록)
+3. event_entry INSERT (WIN + reward_pool_id 기록)
 
-4. event_reward_grant INSERT (보상 지급 요청)
+4. event_reward_allocation INSERT (보상 지급 요청)
 
 5. event_random_reward_counter UPDATE (+1)
 ```
@@ -60,7 +60,7 @@ WHERE reward_pool_id = ?;
 | 데이터 보존 | 최신 집계만 유지 | 이력 전부 보존 |
 
 > 제한 체크가 핵심 목적이므로 **집계 속도 우선 → UPDATE 방식** 채택.  
-> 당첨 이력 자체는 `event_log`에 append-only로 보존된다.
+> 당첨 이력 자체는 `event_entry`에 append-only로 보존된다.
 
 ---
 

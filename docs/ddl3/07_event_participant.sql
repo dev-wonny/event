@@ -7,7 +7,7 @@
 --
 -- ※ append-only: INSERT만 발생, UPDATE 없음
 -- ※ 차단/운영 제어 → event_participant_block 참조
--- ※ 마지막 출석일    → event_log에서 MAX(attendance_date) 파생
+-- ※ 마지막 출석일    → event_entry에서 MAX(attendance_date) 파생
 -- 관계  :
 --   - event.id → event_participant.event_id (1:N)
 --   - (event_id, member_id) UNIQUE

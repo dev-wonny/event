@@ -10,8 +10,8 @@
 --   - event_display_message.event_id         → event.id (1:N)
 --   - event_reward_catalog.event_id          → event.id (1:N)
 --   - event_participant.event_id             → event.id (1:N)
---   - event_log.event_id                     → event.id (1:N)
---   - event_reward_grant.event_id            → event.id (1:N)
+--   - event_entry.event_id                     → event.id (1:N)
+--   - event_reward_allocation.event_id            → event.id (1:N)
 --   - event_share_policy.event_id            → event.id (1:1)
 --   - event_share_log.event_id               → event.id (1:N)
 -- =============================================================

@@ -74,5 +74,5 @@ Step 4. reward_pool.daily_limit / total_limit 확인
         (event_random_reward_counter 기준)
         → 소진됐으면 next 보상으로 fallback 또는 꽝 처리
 
-Step 5. 당첨 확정 → event_log + event_reward_grant INSERT
+Step 5. 당첨 확정 → event_entry + event_reward_allocation INSERT
 ```

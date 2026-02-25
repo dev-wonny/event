@@ -7,7 +7,7 @@
 | `event_random_policy` | `sns_retry_enabled` 여부 |
 | `event_share_policy` | 최대 참여권 수(`max_share_credit`) |
 | `event_share_log` | 링크 클릭마다 row INSERT |
-| `event_log` | SNS 참여권으로 게임 실행 시 `trigger_type='SNS_SHARE'` |
+| `event_entry` | SNS 참여권으로 게임 실행 시 `trigger_type='SNS_SHARE'` |
 
 ---
 
@@ -29,8 +29,8 @@
         → 잔여 > 0 이면 "추가 참여권 N개" 버튼 활성화
 
 [5단계] A가 버튼 클릭 → 랜덤 게임 실행
-        → event_log INSERT (trigger_type='SNS_SHARE')
-        → event_reward_grant INSERT (보상 지급)
+        → event_entry INSERT (trigger_type='SNS_SHARE')
+        → event_reward_allocation INSERT (보상 지급)
 ```
 
 ---
@@ -45,10 +45,10 @@
 | 10:05 | A, 카카오로 URL 공유 |
 | 10:10 | B가 링크 클릭 → share_log id=1 INSERT |
 | 10:15 | A, 게임 화면 접속 |
-| 10:16 | A, 추가 참여권 사용 → 게임 실행 → event_log INSERT |
+| 10:16 | A, 추가 참여권 사용 → 게임 실행 → event_entry INSERT |
 | 11:00 | C가 링크 클릭 → share_log id=2 INSERT |
 | 11:10 | A, 게임 화면 재접속 |
-| 11:11 | A, 추가 참여권 사용 → 게임 실행 → event_log INSERT |
+| 11:11 | A, 추가 참여권 사용 → 게임 실행 → event_entry INSERT |
 | 12:00 | D가 링크 클릭 → share_log id=3 INSERT |
 | 12:10 | A, 게임 화면 재접속 → 잔여 0개 → 버튼 비활성화 |
 
@@ -110,7 +110,7 @@ FROM
     ) share_clicks,
     (
         SELECT COUNT(*) AS cnt
-        FROM event_log
+        FROM event_entry
         WHERE event_id = :eventId
           AND member_id = :memberId
           AND trigger_type = 'SNS_SHARE'
@@ -124,4 +124,4 @@ WHERE esp.event_id = :eventId;
 
 - `share_token`은 클릭을 **공유자에게 귀속**시키는 수단 (`sharer_member_id` 기록용)
 - 잔여 참여권은 `member_id`만 알면 **언제든지 계산 가능** (token 불필요)
-- `event_log.trigger_type = 'SNS_SHARE'` 가 "사용한 참여권" 추적의 핵심
+- `event_entry.trigger_type = 'SNS_SHARE'` 가 "사용한 참여권" 추적의 핵심

@@ -6,7 +6,7 @@
 --   - event.id → event_random_reward_pool.event_id (1:N)
 --   - event_reward_catalog.id → event_random_reward_pool.reward_catalog_id (N:1)
 --   - event_random_reward_pool.id → event_random_reward_counter.reward_pool_id (1:1)
---   - event_random_reward_pool.id → event_log.reward_pool_id (1:N)
+--   - event_random_reward_pool.id → event_entry.reward_pool_id (1:N)
 -- =============================================================
 -- 예시 데이터 (event_id=2, 룰렛 이벤트 6칸)
 -- id=1, event_id=2, reward_catalog_id=1, probability_weight=60, daily_limit=NULL, total_limit=NULL,  priority=1

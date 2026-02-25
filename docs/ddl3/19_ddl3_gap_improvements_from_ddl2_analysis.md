@@ -36,23 +36,23 @@ CREATE UNIQUE INDEX ux_display_message_event_type_lang
 메모:
 - `is_deleted`를 고려한 유니크 정책인지(소프트삭제 후 재등록 허용 여부)는 운영 정책에 맞춰 확정 필요
 
-### 2. `event_reward_grant.event_log_id UNIQUE` 재검토 (중요)
+### 2. `event_reward_allocation.event_entry_id UNIQUE` 재검토 (중요)
 
-대상: `15_event_reward_grant.sql`
+대상: `15_event_reward_allocation.sql`
 
 현재 문제:
 - 출석 1회 CHECK_IN에서 `DAILY + BONUS` 동시 지급 시 동일 로그에 복수 지급 row가 필요할 수 있음
-- 현재 `event_log_id UNIQUE`로는 표현 불가
+- 현재 `event_entry_id UNIQUE`로는 표현 불가
 
 권장 패치 방향(최소 변경):
 
 ```sql
 -- 1) UNIQUE 제거
--- ALTER TABLE event_platform.event_reward_grant DROP CONSTRAINT ... ;
+-- ALTER TABLE event_platform.event_reward_allocation DROP CONSTRAINT ... ;
 
 -- 2) 중복 지급 방지용 대체 제약 추가 (예시)
 CREATE UNIQUE INDEX ux_reward_grant_log_kind_catalog
-    ON event_platform.event_reward_grant(event_log_id, reward_kind, reward_catalog_id);
+    ON event_platform.event_reward_allocation(event_entry_id, reward_kind, reward_catalog_id);
 ```
 
 주의:
@@ -73,11 +73,11 @@ CREATE UNIQUE INDEX ux_reward_grant_log_kind_catalog
 
 ## 2) ddl3 유지 시 운영 규칙으로 보완해야 하는 항목
 
-### 1. `event_log.event_type` / `event_reward_grant.event_type` 정합성 보장
+### 1. `event_entry.event_type` / `event_reward_allocation.event_type` 정합성 보장
 
 대상:
-- `14_event_log.sql`
-- `15_event_reward_grant.sql`
+- `14_event_entry.sql`
+- `15_event_reward_allocation.sql`
 
 문제:
 - `event_id`로부터 유도 가능한 값을 별도 저장 (조회 최적화용 비정규화)
@@ -91,7 +91,7 @@ CREATE UNIQUE INDEX ux_reward_grant_log_kind_catalog
 
 ```sql
 SELECT l.id, l.event_id, l.event_type, e.event_type AS actual_event_type
-FROM event_platform.event_log l
+FROM event_platform.event_entry l
 JOIN event_platform.event e ON e.id = l.event_id
 WHERE l.event_type <> e.event_type;
 ```
@@ -156,7 +156,7 @@ ddl2 권장:
 
 ### C. 통합 로그의 타입별 nullable 컬럼 분리
 
-대상: `14_event_log.sql`
+대상: `14_event_entry.sql`
 
 현재:
 - 출석 전용 컬럼 + 랜덤 전용 컬럼이 같은 테이블에 공존
@@ -173,7 +173,7 @@ ddl2 권장:
 
 ### D. 보상 지급 스냅샷의 타입별 상세 분리 + 행위:지급 1:N 모델
 
-대상: `15_event_reward_grant.sql`
+대상: `15_event_reward_allocation.sql`
 
 ddl2 권장:
 - `reward_grant` (공통)
@@ -215,7 +215,7 @@ ddl2 권장:
 
 1. `event_display_message` 유니크 인덱스 보강
 2. `02_event.sql` 주석 정정
-3. `event_reward_grant` 다중 지급 가능 여부 도메인 확정
+3. `event_reward_allocation` 다중 지급 가능 여부 도메인 확정
 
 ### Phase 2 (ddl3 유지 보완)
 

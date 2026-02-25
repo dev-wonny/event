@@ -1,4 +1,4 @@
-# event_reward_grant Flow
+# event_reward_allocation Flow
 
 ## 상태 전이
 
@@ -23,14 +23,14 @@ INSERT(PENDING) → PROCESSING → SUCCESS
 
 ```
 1. 사용자가 출석/랜덤 게임 완료
-   → event_log INSERT (행위 기록)
+   → event_entry INSERT (행위 기록)
 
 2. 보상 지급 시작
-   → event_reward_grant INSERT (reward_status='PENDING')
+   → event_reward_allocation INSERT (reward_status='PENDING')
       idempotency_key = 'rand-{event_id}-{member_id}-log-{log_id}'  등
 
 3. 외부 API 호출 전 상태 전이
-   UPDATE event_reward_grant
+   UPDATE event_reward_allocation
    SET reward_status = 'PROCESSING'
    WHERE id = ? AND reward_status = 'PENDING'   ← 중복 처리 방지
    -- affected rows = 0 → 이미 다른 프로세스가 처리 중, 스킵
@@ -58,7 +58,7 @@ INSERT(PENDING) → PROCESSING → SUCCESS
 [매 1분 실행되는 재시도 배치]
 
 1. 재시도 대상 조회
-   SELECT * FROM event_reward_grant
+   SELECT * FROM event_reward_allocation
    WHERE reward_status IN ('PENDING', 'FAILED')
      AND next_retry_at <= NOW()
    ORDER BY next_retry_at ASC
@@ -93,7 +93,7 @@ INSERT(PENDING) → PROCESSING → SUCCESS
 
 ```sql
 -- 동일 idempotency_key는 UNIQUE 제약으로 INSERT 자체가 차단
-INSERT INTO event_reward_grant (..., idempotency_key)
+INSERT INTO event_reward_allocation (..., idempotency_key)
 VALUES (..., 'rand-2-10001-log-3')
 ON CONFLICT (idempotency_key) DO NOTHING;
 -- → affected rows=0 이면 이미 지급 요청 있음, 무시
@@ -114,6 +114,6 @@ ON CONFLICT (idempotency_key) DO NOTHING;
 ```sql
 -- 재시도 배치가 사용하는 인덱스
 CREATE INDEX idx_reward_grant_retry_queue
-    ON event_reward_grant(reward_status, next_retry_at)
+    ON event_reward_allocation(reward_status, next_retry_at)
     WHERE reward_status IN ('PENDING', 'FAILED');
 ```

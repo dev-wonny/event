@@ -10,7 +10,7 @@ DB 트랜잭션과 외부 시스템 호출의 **원자성 보장** 문제를 해
 
 ```
 [순진한 구현]
-1. event_log INSERT          ─┐ DB 트랜잭션
+1. event_entry INSERT          ─┐ DB 트랜잭션
 2. 외부 포인트 API 호출         ─┘ ← 두 작업을 하나의 트랜잭션으로 묶을 수 없음
 
 실패 시나리오:
@@ -24,8 +24,8 @@ DB 트랜잭션과 외부 시스템 호출의 **원자성 보장** 문제를 해
 
 ```
 [1단계] 같은 DB 트랜잭션 안에서 두 행 INSERT
-  event_log INSERT (행위 기록)
-  event_reward_grant INSERT, reward_status='PENDING'  ← Outbox 역할
+  event_entry INSERT (행위 기록)
+  event_reward_allocation INSERT, reward_status='PENDING'  ← Outbox 역할
 
   → 트랜잭션 커밋 = "보상 지급 의뢰서" 확실히 저장
 
@@ -42,7 +42,7 @@ DB 트랜잭션과 외부 시스템 호출의 **원자성 보장** 문제를 해
 
 | Outbox 개념 | 현재 구현 |
 |-------------|-----------|
-| Outbox 테이블 | `event_reward_grant` (PENDING행) |
+| Outbox 테이블 | `event_reward_allocation` (PENDING행) |
 | Outbox Worker | 재시도 배치 (매 1분 실행) |
 | 중복 방지 | `idempotency_key UNIQUE` |
 | 낙관적 락 | `WHERE reward_status='PENDING'` |
@@ -53,12 +53,12 @@ DB 트랜잭션과 외부 시스템 호출의 **원자성 보장** 문제를 해
 
 ```
 현재 (DB 배치)
-  event_reward_grant (PENDING)
+  event_reward_allocation (PENDING)
     ↓ 1분 배치가 폴링
   외부 API 호출
 
 Kafka 도입 후
-  event_reward_grant (PENDING)
+  event_reward_allocation (PENDING)
     ↓ Debezium/Transactional Outbox → Kafka Producer
   Kafka Topic: reward.grant.requested
     ↓ Kafka Consumer

@@ -23,7 +23,7 @@
    → COUNT(*) WHERE share_token=A's token ++
 
 4. COUNT(*) < max_share_credit
-   → A에게 랜덤 1회 추가 실행 권한 생성 (event_log trigger_type='SNS_SHARE')
+   → A에게 랜덤 1회 추가 실행 권한 생성 (event_entry trigger_type='SNS_SHARE')
 
 5. COUNT(*) >= max_share_credit
    → A의 추가 참여권 한도 도달, 더 이상 부여 안 함

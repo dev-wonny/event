@@ -82,8 +82,8 @@ COMMENT ON COLUMN event_platform.file.is_public          IS 'CDN 공개 여부 (
 --   - event_display_message.event_id         → event.id (1:N)
 --   - event_reward_catalog.event_id          → event.id (1:N)
 --   - event_participant.event_id             → event.id (1:N)
---   - event_log.event_id                     → event.id (1:N)
---   - event_reward_grant.event_id            → event.id (1:N)
+--   - event_entry.event_id                     → event.id (1:N)
+--   - event_reward_allocation.event_id            → event.id (1:N)
 --   - event_share_policy.event_id            → event.id (1:1)
 --   - event_share_log.event_id               → event.id (1:N)
 -- =============================================================
@@ -393,7 +393,7 @@ COMMENT ON COLUMN event_platform.event_reward_catalog.is_active       IS 'FALSE 
 --
 -- ※ append-only: INSERT만 발생, UPDATE 없음
 -- ※ 차단/운영 제어 → event_participant_block 참조
--- ※ 마지막 출석일    → event_log에서 MAX(attendance_date) 파생
+-- ※ 마지막 출석일    → event_entry에서 MAX(attendance_date) 파생
 -- 관계  :
 --   - event.id → event_participant.event_id (1:N)
 --   - (event_id, member_id) UNIQUE
@@ -624,7 +624,7 @@ COMMENT ON COLUMN event_platform.event_attendance_bonus_reward.reward_catalog_id
 --   - event.id → event_random_reward_pool.event_id (1:N)
 --   - event_reward_catalog.id → event_random_reward_pool.reward_catalog_id (N:1)
 --   - event_random_reward_pool.id → event_random_reward_counter.reward_pool_id (1:1)
---   - event_random_reward_pool.id → event_log.reward_pool_id (1:N)
+--   - event_random_reward_pool.id → event_entry.reward_pool_id (1:N)
 -- =============================================================
 -- 예시 데이터 (event_id=2, 룰렛 이벤트 6칸)
 -- id=1, event_id=2, reward_catalog_id=1, probability_weight=60, daily_limit=NULL, total_limit=NULL,  priority=1
@@ -854,7 +854,7 @@ COMMENT ON COLUMN event_platform.event_share_log.user_agent       IS '클릭 요
 COMMENT ON COLUMN event_platform.event_share_log.created_at       IS '링크 클릭 발생 일시 (append-only, 이후 수정 없음)';
 
 -- =============================================================
--- [14] event_log
+-- [14] event_entry
 -- 역할  : 출석·랜덤 이벤트 통합 행위 로그 (append-only)
 --         - 실제 참여 시도만 기록 (CHECK_IN / WIN / LOSE / ALREADY_CHECKED / LIMIT_REJECT / FAILED)
 --         - 기간 외(OUT_OF_PERIOD), 자격 미충족(ELIGIBILITY_REJECT)은 응답만 반환, 로그 미기록
@@ -862,8 +862,8 @@ COMMENT ON COLUMN event_platform.event_share_log.created_at       IS '링크 클
 --         - 랜덤 로그: trigger_type, reward_pool_id 사용
 --         - 이벤트 유형에 따라 사용하는 컬럼이 달라짐
 -- 관계  :
---   - event.id → event_log.event_id (1:N)
---   - event_random_reward_pool.id → event_log.reward_pool_id (N:1, 랜덤 전용)
+--   - event.id → event_entry.event_id (1:N)
+--   - event_random_reward_pool.id → event_entry.reward_pool_id (N:1, 랜덤 전용)
 -- =============================================================
 -- 예시 데이터
 -- [출석 성공]
@@ -884,7 +884,7 @@ COMMENT ON COLUMN event_platform.event_share_log.created_at       IS '링크 클
 --        attendance_date=NULL, trigger_type='SNS_SHARE', reward_pool_id=1
 -- =============================================================
 
-CREATE TABLE event_platform.event_log (
+CREATE TABLE event_platform.event_entry (
     id                          BIGSERIAL       PRIMARY KEY,
 
     /* =========================
@@ -934,37 +934,37 @@ CREATE TABLE event_platform.event_log (
     created_at                  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP -- 행위 발생 일시 (append-only)
 );
 
-CREATE INDEX idx_event_log_event_member_created
-    ON event_platform.event_log(event_id, member_id, created_at DESC);
+CREATE INDEX idx_event_entry_event_member_created
+    ON event_platform.event_entry(event_id, member_id, created_at DESC);
 
-CREATE INDEX idx_event_log_member_type
-    ON event_platform.event_log(member_id, event_type, created_at DESC);
+CREATE INDEX idx_event_entry_member_type
+    ON event_platform.event_entry(member_id, event_type, created_at DESC);
 
-CREATE INDEX idx_event_log_attendance_date
-    ON event_platform.event_log(event_id, attendance_date)
+CREATE INDEX idx_event_entry_attendance_date
+    ON event_platform.event_entry(event_id, attendance_date)
     WHERE event_type = 'ATTENDANCE' AND action_result = 'CHECK_IN';
 
-COMMENT ON TABLE  event_platform.event_log IS '출석·랜덤 통합 행위 로그 (append-only) - 실제 참여 시도만 기록, 기간외/자격미충족은 응답만 반환';
-COMMENT ON COLUMN event_platform.event_log.event_id                 IS 'FK: event.id';
-COMMENT ON COLUMN event_platform.event_log.event_type               IS '이벤트 유형 ATTENDANCE / RANDOM (조회 최적화를 위한 비정규화)';
-COMMENT ON COLUMN event_platform.event_log.member_id                IS '행위를 수행한 회원 ID';
-COMMENT ON COLUMN event_platform.event_log.action_result            IS '참여 시도 결과: CHECK_IN/ALREADY_CHECKED(출석) | WIN/LOSE(랜덤) | LIMIT_REJECT/FAILED(공통) ※ OUT_OF_PERIOD/ELIGIBILITY_REJECT는 미기록';
-COMMENT ON COLUMN event_platform.event_log.failure_reason           IS '실패 시 상세 사유 (선택)';
-COMMENT ON COLUMN event_platform.event_log.attendance_date          IS '[ATTENDANCE 전용] 출석 기준 날짜 (KST)';
-COMMENT ON COLUMN event_platform.event_log.total_attendance_count   IS '[ATTENDANCE 전용] 출석 성공 시 누적 출석 수 스냅샷';
-COMMENT ON COLUMN event_platform.event_log.streak_attendance_count  IS '[ATTENDANCE 전용] 출석 성공 시 연속 출석 수 스냅샷';
-COMMENT ON COLUMN event_platform.event_log.trigger_type             IS '[RANDOM 전용] BASE=기본 참여, SNS_SHARE=SNS공유 후 재도전';
-COMMENT ON COLUMN event_platform.event_log.reward_pool_id           IS '[RANDOM WIN 전용] FK: event_random_reward_pool.id - 당첨 보상 풀';
-COMMENT ON COLUMN event_platform.event_log.created_at               IS '행위 발생 일시 (append-only, 수정 없음)';
+COMMENT ON TABLE  event_platform.event_entry IS '출석·랜덤 통합 행위 로그 (append-only) - 실제 참여 시도만 기록, 기간외/자격미충족은 응답만 반환';
+COMMENT ON COLUMN event_platform.event_entry.event_id                 IS 'FK: event.id';
+COMMENT ON COLUMN event_platform.event_entry.event_type               IS '이벤트 유형 ATTENDANCE / RANDOM (조회 최적화를 위한 비정규화)';
+COMMENT ON COLUMN event_platform.event_entry.member_id                IS '행위를 수행한 회원 ID';
+COMMENT ON COLUMN event_platform.event_entry.action_result            IS '참여 시도 결과: CHECK_IN/ALREADY_CHECKED(출석) | WIN/LOSE(랜덤) | LIMIT_REJECT/FAILED(공통) ※ OUT_OF_PERIOD/ELIGIBILITY_REJECT는 미기록';
+COMMENT ON COLUMN event_platform.event_entry.failure_reason           IS '실패 시 상세 사유 (선택)';
+COMMENT ON COLUMN event_platform.event_entry.attendance_date          IS '[ATTENDANCE 전용] 출석 기준 날짜 (KST)';
+COMMENT ON COLUMN event_platform.event_entry.total_attendance_count   IS '[ATTENDANCE 전용] 출석 성공 시 누적 출석 수 스냅샷';
+COMMENT ON COLUMN event_platform.event_entry.streak_attendance_count  IS '[ATTENDANCE 전용] 출석 성공 시 연속 출석 수 스냅샷';
+COMMENT ON COLUMN event_platform.event_entry.trigger_type             IS '[RANDOM 전용] BASE=기본 참여, SNS_SHARE=SNS공유 후 재도전';
+COMMENT ON COLUMN event_platform.event_entry.reward_pool_id           IS '[RANDOM WIN 전용] FK: event_random_reward_pool.id - 당첨 보상 풀';
+COMMENT ON COLUMN event_platform.event_entry.created_at               IS '행위 발생 일시 (append-only, 수정 없음)';
 
 -- =============================================================
--- [15] event_reward_grant
+-- [15] event_reward_allocation
 -- 역할  : 보상 지급 내역 - 출석·랜덤 이벤트 모두 이 테이블에 기록
 --         외부 시스템(포인트 API, 쿠폰 API) 연동 재시도 상태 관리 포함
 -- 관계  :
---   - event.id → event_reward_grant.event_id (1:N)
---   - event_log.id → event_reward_grant.event_log_id (1:1)
---   - event_reward_catalog.id → event_reward_grant.reward_catalog_id (N:1)
+--   - event.id → event_reward_allocation.event_id (1:N)
+--   - event_entry.id → event_reward_allocation.event_entry_id (1:1)
+--   - event_reward_catalog.id → event_reward_allocation.reward_catalog_id (N:1)
 -- =============================================================
 -- 예시 데이터
 -- [출석 일일 보상]
@@ -980,7 +980,7 @@ COMMENT ON COLUMN event_platform.event_log.created_at               IS '행위 �
 --        reward_type='POINT', point_amount=100, reward_status='SUCCESS', idempotency_key='rand-2-10001-log-3'
 -- =============================================================
 
-CREATE TABLE event_platform.event_reward_grant (
+CREATE TABLE event_platform.event_reward_allocation (
     id                          BIGSERIAL       PRIMARY KEY,
 
     /* =========================
@@ -994,8 +994,8 @@ CREATE TABLE event_platform.event_reward_grant (
     /* =========================
      * 행위 로그 참조 (1:1)
      * ========================= */
-    event_log_id                BIGINT          NOT NULL UNIQUE
-        REFERENCES event_platform.event_log(id),                -- FK: event_log.id (1 로그 = 최대 1 보상지급)
+    event_entry_id                BIGINT          NOT NULL UNIQUE
+        REFERENCES event_platform.event_entry(id),                -- FK: event_entry.id (1 로그 = 최대 1 보상지급)
 
     /* =========================
      * 보상 구분
@@ -1051,32 +1051,32 @@ CREATE TABLE event_platform.event_reward_grant (
 );
 
 CREATE INDEX idx_reward_grant_event_member
-    ON event_platform.event_reward_grant(event_id, member_id, created_at DESC);
+    ON event_platform.event_reward_allocation(event_id, member_id, created_at DESC);
 
 CREATE INDEX idx_reward_grant_retry_queue
-    ON event_platform.event_reward_grant(reward_status, next_retry_at)
+    ON event_platform.event_reward_allocation(reward_status, next_retry_at)
     WHERE reward_status IN ('PENDING', 'FAILED');
 
-COMMENT ON TABLE  event_platform.event_reward_grant IS '보상 지급 내역 - 출석·랜덤 이벤트 통합 (외부 API 재시도 상태 관리 포함)';
-COMMENT ON COLUMN event_platform.event_reward_grant.event_id               IS 'FK: event.id';
-COMMENT ON COLUMN event_platform.event_reward_grant.event_type             IS '이벤트 유형 ATTENDANCE/RANDOM (비정규화, 조회 최적화)';
-COMMENT ON COLUMN event_platform.event_reward_grant.member_id              IS '보상 수령 회원 ID';
-COMMENT ON COLUMN event_platform.event_reward_grant.event_log_id           IS 'FK: event_log.id - 1 로그 행위당 최대 1개 보상지급 (UNIQUE)';
-COMMENT ON COLUMN event_platform.event_reward_grant.reward_kind            IS 'DAILY=출석 일일보상, BONUS=출석 보너스보상, RANDOM=랜덤 당첨보상';
-COMMENT ON COLUMN event_platform.event_reward_grant.reward_catalog_id      IS 'FK: event_reward_catalog.id (선택)';
-COMMENT ON COLUMN event_platform.event_reward_grant.reward_type            IS 'POINT / COUPON / PRODUCT / NONE / ONEMORE';
-COMMENT ON COLUMN event_platform.event_reward_grant.point_amount           IS 'POINT 전용 지급 포인트 (지급 시점 스냅샷)';
-COMMENT ON COLUMN event_platform.event_reward_grant.coupon_group_id        IS 'COUPON 전용 쿠폰 그룹 ID (지급 시점 스냅샷)';
-COMMENT ON COLUMN event_platform.event_reward_grant.external_ref_id        IS 'PRODUCT 전용 외부 상품 ID (지급 시점 스냅샷)';
-COMMENT ON COLUMN event_platform.event_reward_grant.reward_status          IS 'PENDING=대기, PROCESSING=처리중, SUCCESS=성공, FAILED=실패, CANCELLED=취소';
-COMMENT ON COLUMN event_platform.event_reward_grant.retry_count            IS '외부 API 재시도 횟수';
-COMMENT ON COLUMN event_platform.event_reward_grant.next_retry_at          IS '다음 재시도 예정 시각 (PENDING/FAILED 상태에서만 사용)';
-COMMENT ON COLUMN event_platform.event_reward_grant.idempotency_key        IS '외부 API 중복 호출 방지 멱등성 키 (UNIQUE)';
-COMMENT ON COLUMN event_platform.event_reward_grant.external_transaction_id IS '외부 포인트·쿠폰 시스템이 반환한 트랜잭션 ID';
-COMMENT ON COLUMN event_platform.event_reward_grant.error_code             IS '외부 API 오류 코드';
-COMMENT ON COLUMN event_platform.event_reward_grant.error_message          IS '외부 API 오류 메시지 상세';
-COMMENT ON COLUMN event_platform.event_reward_grant.requested_at           IS '보상 지급 최초 요청 일시';
-COMMENT ON COLUMN event_platform.event_reward_grant.processed_at           IS '보상 지급 완료 또는 최종 실패 처리 일시';
+COMMENT ON TABLE  event_platform.event_reward_allocation IS '보상 지급 내역 - 출석·랜덤 이벤트 통합 (외부 API 재시도 상태 관리 포함)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.event_id               IS 'FK: event.id';
+COMMENT ON COLUMN event_platform.event_reward_allocation.event_type             IS '이벤트 유형 ATTENDANCE/RANDOM (비정규화, 조회 최적화)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.member_id              IS '보상 수령 회원 ID';
+COMMENT ON COLUMN event_platform.event_reward_allocation.event_entry_id           IS 'FK: event_entry.id - 1 로그 행위당 최대 1개 보상지급 (UNIQUE)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_kind            IS 'DAILY=출석 일일보상, BONUS=출석 보너스보상, RANDOM=랜덤 당첨보상';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_catalog_id      IS 'FK: event_reward_catalog.id (선택)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_type            IS 'POINT / COUPON / PRODUCT / NONE / ONEMORE';
+COMMENT ON COLUMN event_platform.event_reward_allocation.point_amount           IS 'POINT 전용 지급 포인트 (지급 시점 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.coupon_group_id        IS 'COUPON 전용 쿠폰 그룹 ID (지급 시점 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.external_ref_id        IS 'PRODUCT 전용 외부 상품 ID (지급 시점 스냅샷)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.reward_status          IS 'PENDING=대기, PROCESSING=처리중, SUCCESS=성공, FAILED=실패, CANCELLED=취소';
+COMMENT ON COLUMN event_platform.event_reward_allocation.retry_count            IS '외부 API 재시도 횟수';
+COMMENT ON COLUMN event_platform.event_reward_allocation.next_retry_at          IS '다음 재시도 예정 시각 (PENDING/FAILED 상태에서만 사용)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.idempotency_key        IS '외부 API 중복 호출 방지 멱등성 키 (UNIQUE)';
+COMMENT ON COLUMN event_platform.event_reward_allocation.external_transaction_id IS '외부 포인트·쿠폰 시스템이 반환한 트랜잭션 ID';
+COMMENT ON COLUMN event_platform.event_reward_allocation.error_code             IS '외부 API 오류 코드';
+COMMENT ON COLUMN event_platform.event_reward_allocation.error_message          IS '외부 API 오류 메시지 상세';
+COMMENT ON COLUMN event_platform.event_reward_allocation.requested_at           IS '보상 지급 최초 요청 일시';
+COMMENT ON COLUMN event_platform.event_reward_allocation.processed_at           IS '보상 지급 완료 또는 최종 실패 처리 일시';
 
 -- =============================================================
 -- [16] event_participation_limit_policy
