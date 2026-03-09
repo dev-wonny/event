@@ -88,7 +88,7 @@
 
 ### 1. 이벤트 응모
 
-- **접근 권한**: 사용자 (돌쇼네 서버)
+- **접근 권한**: 사용자 (돌쇠네 서버)
 - **기능 설명**: 이벤트 회차에 참여 후 응모. 즉시 당첨 여부를 항상 응답에 포함하며, 즉시 당첨이 아니면 `isWinner: null` 로 반환
     - event_applicant 에 참여 생성
       - 이벤트 당 참여는 1개
@@ -203,8 +203,30 @@ X-Member-Id: {memberId}
 }
 ```
 
-### 응모 내역 조회 (event_entry)
+### 3. 응모 내역 조회 (event_entry)
 
+- **접근 권한**: 사용자 (돌쇠네 서버)
+- **기능 설명**: 회원의 특정 회차 응모 이력 조회
+    - **참여 (event_applicant)**: 이벤트당 1개 row. 참여 여부 필터 용도
+    - **응모 (event_entry)**: 응모할 때마다 append-only로 누적 (1회차에 여러 번 응모 가능한 경우)
+- **메소드**: `GET`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries`
+
+**Request Header**
+```
+X-Api-Key: {apiKey}
+X-Member-Id: {memberId}
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `eventId` | Long | Y | 이벤트 식별자 (Path) |
+| `roundId` | Long | Y | 회차 식별자 (Path) |
+
+**Request Body**: 없음
+
+**Response Header**: `HTTP/1.1 200 OK`
 
 **Response Body**
 ```json
@@ -213,17 +235,25 @@ X-Member-Id: {memberId}
   "message": "응모 내역을 조회했습니다.",
   "timestamp": "2026-03-09T08:00:00Z",
   "data": {
-    "isApplied": true,
+    "totalCount": 3,
     "entries": [
       {
         "entryId": 200,
         "appliedAt": "2026-03-09T08:00:00Z",
         "isWinner": null
+      },
+      {
+        "entryId": 201,
+        "appliedAt": "2026-03-09T09:00:00Z",
+        "isWinner": true
       }
     ]
   }
 }
 ```
+
+> - `isWinner: null` → 즉시 당첨형이 아닌 이벤트, 또는 추첨 전
+> - `isWinner: true / false` → 즉시 당첨형 이벤트 응모 결과
 
 **Error Response**
 | HTTP Status | code | message |
