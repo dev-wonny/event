@@ -6,7 +6,7 @@
 
 | 구분 | 호출 주체 | 인증 방식 |
 |------|----------|----------|
-| **사용자 API** | 돌쇠네 쇼핑몰 서버 | `X-Api-Key: {apiKey}` |
+| **사용자 API** | 돌쇠네 쇼핑몰 서버 | `X-Api-Key: {apiKey}` + `X-Member-Id: {memberId}` |
 | **관리자 API** | 운영자 | `Authorization: Bearer {adminToken}` |
 
 > - 이벤트 플랫폼은 자체 회원 없음. 돌쇠네 쇼핑몰 회원 사용.
@@ -18,8 +18,7 @@
 ## 📋 목차
 
 ### 🔗 사용자 API
-1. [이벤트 참여](#1-이벤트-참여)
-2. [이벤트 참여 + 당첨 내역](#2-이벤트-참여--당첨-내역)
+1. [이벤트 응모](#1-이벤트-응모)
 3. [참여 여부 조회](#3-참여-여부-조회)
 4. [당첨 내역 조회](#4-당첨-내역-조회)
 
@@ -75,10 +74,11 @@
 40. [응모자 상태 변경](#40-응모자-상태-변경)
 
 **당첨자 (event_win)**
-41. [당첨자 수기 등록](#41-당첨자-수기-등록)
-42. [당첨자 조회 / 검색](#42-당첨자-조회--검색)
-43. [당첨자 수정](#43-당첨자-수정)
-44. [당첨자 삭제](#44-당첨자-삭제)
+41. [추첨 실행](#41-추첨-실행)
+42. [당첨자 수기 등록](#42-당첨자-수기-등록)
+43. [당첨자 조회 / 검색](#43-당첨자-조회--검색)
+44. [당첨자 수정](#44-당첨자-수정)
+45. [당첨자 삭제](#45-당첨자-삭제)
 
 ---
 
@@ -86,12 +86,16 @@
 
 ---
 
-### 1. 이벤트 참여
+### 1. 이벤트 응모
 
-- **접근 권한**: 사용자 (돌쇠네 서버)
-- **기능 설명**: 이벤트 회차 응모 (출석체크 참여)
+- **접근 권한**: 사용자 (돌쇼네 서버)
+- **기능 설명**: 이벤트 회차에 참여 후 응모. 즉시 당첨 여부를 항상 응답에 포함하며, 즉시 당첨이 아니면 `isWinner: null` 로 반환
+    - event_applicant 에 참여 생성
+      - 이벤트 당 참여는 1개
+      - 필터 용도 : 더 이상 이벤트에 참여해도 되는 사람인지 validation 안함
+    - event_entry에는 응모시 매번 append-only
 - **메소드**: `POST`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/apply`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries`
 
 **Request Header**
 ```
@@ -107,21 +111,45 @@ Content-Type: application/json
 
 **Request Body**
 ```json
-{ "memberId": "dolsoi_user_001" }
+{}
 ```
 
 **Response Header**: `HTTP/1.1 201 Created`
 
 **Response Body**
+
+> 즉시 당첨형 이벤트: `isWinner`, `win` 포함
+
 ```json
 {
   "code": "ENTY_APPLIED",
   "message": "응모가 완료되었습니다.",
   "timestamp": "2026-03-09T08:00:00Z",
   "data": {
-    "applicantId": 100,
     "entryId": 200,
-    "appliedAt": "2026-03-09T08:00:00Z"
+    "appliedAt": "2026-03-09T08:00:00Z",
+    "isWinner": true,
+    "win": {
+      "winId": 1,
+      "prizeName": "스타벅스 아메리카노",
+      "rewardType": "COUPON"
+    }
+  }
+}
+```
+
+> 이무 추첨형 이벤트 (즉시 당첨 없음): `isWinner: null`, `win: null`
+
+```json
+{
+  "code": "ENTY_APPLIED",
+  "message": "응모가 완료되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": {
+    "entryId": 200,
+    "appliedAt": "2026-03-09T08:00:00Z",
+    "isWinner": null,
+    "win": null
   }
 }
 ```
@@ -138,71 +166,19 @@ Content-Type: application/json
 
 ---
 
-### 2. 이벤트 참여 + 당첨 내역
+### 2. 참여 여부 조회 (event_applicant)
 
 - **접근 권한**: 사용자 (돌쇠네 서버)
-- **기능 설명**: 이벤트 회차 응모 후 즉시 당첨 여부 반환 (즉시 당첨형 이벤트용)
-- **메소드**: `POST`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/apply-and-result`
-
-**Request Header**
-```
-X-Api-Key: {apiKey}
-Content-Type: application/json
-```
-
-**Request 파라미터**
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|------|------|
-| `eventId` | Long | Y | 이벤트 식별자 (Path) |
-| `roundId` | Long | Y | 회차 식별자 (Path) |
-
-**Request Body**
-```json
-{ "memberId": "dolsoi_user_001" }
-```
-
-**Response Header**: `HTTP/1.1 201 Created`
-
-**Response Body**
-```json
-{
-  "code": "ENTY_APPLIED",
-  "message": "응모가 완료되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": {
-    "applicantId": 100,
-    "entryId": 200,
-    "appliedAt": "2026-03-09T08:00:00Z",
-    "isWinner": true,
-    "win": {
-      "winId": 1,
-      "prizeName": "스타벅스 아메리카노",
-      "rewardType": "COUPON"
-    }
-  }
-}
-```
-
-**Error Response**
-
-| HTTP Status | code | message |
-|-------------|------|---------|
-| 404 | `EVT_NOT_FOUND` | 이벤트를 찾을 수 없습니다. |
-| 409 | `ENTY_ALREADY_ENTERED` | 이미 참여하였습니다. |
-
----
-
-### 3. 참여 여부 조회
-
-- **접근 권한**: 사용자 (돌쇠네 서버)
-- **기능 설명**: 회원의 현재 회차 참여 여부 확인
+- **기능 설명**: 회원의 현재 회차 응모 여부 확인 (memberId로 event_applicant 조회)
+    - 이벤트에 참여자가 참여한 경우 event_applicant에 한개 row 생김
+    - event_applicant 로 참여자 여부 확인 가능 
 - **메소드**: `GET`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/apply/status`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/participation`
 
 **Request Header**
 ```
 X-Api-Key: {apiKey}
+X-Member-Id: {memberId}
 ```
 
 **Request 파라미터**
@@ -210,7 +186,6 @@ X-Api-Key: {apiKey}
 |---------|------|------|------|
 | `eventId` | Long | Y | 이벤트 식별자 (Path) |
 | `roundId` | Long | Y | 회차 식별자 (Path) |
-| `memberId` | String | Y | 회원 식별자 (Query) |
 
 **Request Body**: 없음
 
@@ -219,13 +194,33 @@ X-Api-Key: {apiKey}
 **Response Body**
 ```json
 {
-  "code": "ENTY_STATUS_OK",
-  "message": "참여 상태를 조회했습니다.",
+  "code": "ENTY_LIST_OK",
+  "message": "응모 내역을 조회했습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": {
+    "isApplied": true
+  }
+}
+```
+
+### 응모 내역 조회 (event_entry)
+
+
+**Response Body**
+```json
+{
+  "code": "ENTY_LIST_OK",
+  "message": "응모 내역을 조회했습니다.",
   "timestamp": "2026-03-09T08:00:00Z",
   "data": {
     "isApplied": true,
-    "appliedAt": "2026-03-09T08:00:00Z",
-    "entryCount": 1
+    "entries": [
+      {
+        "entryId": 200,
+        "appliedAt": "2026-03-09T08:00:00Z",
+        "isWinner": null
+      }
+    ]
   }
 }
 ```
@@ -242,18 +237,19 @@ X-Api-Key: {apiKey}
 - **접근 권한**: 사용자 (돌쇠네 서버)
 - **기능 설명**: 회원의 이벤트 당첨 내역 조회
 - **메소드**: `GET`
-- **URL**: `/api/v1/events/{eventId}/wins`
+- **URL**: `/api/v1/wins`
 
 **Request Header**
 ```
 X-Api-Key: {apiKey}
+X-Member-Id: {memberId}
 ```
 
 **Request 파라미터**
 | 파라미터 | 타입 | 필수 | 설명 |
 |---------|------|------|------|
-| `eventId` | Long | Y | 이벤트 식별자 (Path) |
-| `memberId` | String | Y | 회원 식별자 (Query) |
+| `eventId` | Long | N | 이벤트 식별자 (Query) |
+| `roundId` | Long | N | 회차 식별자 (Query) |
 
 **Request Body**: 없음
 
@@ -319,11 +315,13 @@ Content-Type: application/json
   "isDuplicateWinner": false,
   "isMultipleEntry": false,
   "description": "매일 출석하고 경품을 받으세요!",
-  "firstRound": {
-    "roundStartAt": "2026-03-01T00:00:00Z",
-    "roundEndAt": "2026-03-31T23:59:59Z",
-    "drawAt": "2026-04-01T10:00:00Z"
-  }
+  "rounds": [
+    {
+      "roundStartAt": "2026-03-01T00:00:00Z",
+      "roundEndAt": "2026-03-31T23:59:59Z",
+      "drawAt": "2026-04-01T10:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -445,7 +443,8 @@ Authorization: Bearer {adminToken}
     "isMultipleEntry": false,
     "isWinnerAnnounced": false,
     "description": "매일 출석하고 경품을 받으세요!",
-    "createdAt": "2026-02-20T10:00:00Z"
+    "createdAt": "2026-02-20T10:00:00Z",
+    "roundIds": [1, 2, 3]
   }
 }
 ```
@@ -523,17 +522,9 @@ Authorization: Bearer {adminToken}
 |---------|------|------|------|
 | `eventId` | Long | Y | 이벤트 식별자 (Path) |
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "EVT_DELETED",
-  "message": "이벤트가 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 **Error Response**
 | HTTP Status | code | message |
@@ -547,7 +538,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 이벤트 특정 상태 필드만 변경
 - **메소드**: `PATCH`
-- **URL**: `/api/v1/events/{eventId}/status`
+- **URL**: `/api/v1/events/{eventId}`
 
 **Request Header**
 ```
@@ -565,7 +556,6 @@ Content-Type: application/json
 {
   "isActive": true,
   "isVisible": true,
-  "isDeleted": false,
   "isAutoEntry": false,
   "isWinnerAnnounced": true
 }
@@ -774,17 +764,9 @@ Content-Type: application/json
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "ROUND_DELETED",
-  "message": "회차가 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 ---
 
@@ -793,7 +775,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 회차 특정 상태 필드만 변경
 - **메소드**: `PATCH`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/status`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}`
 
 **Request Header**
 ```
@@ -810,8 +792,7 @@ Content-Type: application/json
 **Request Body**
 ```json
 {
-  "isConfirmed": true,
-  "isDeleted": false
+  "isConfirmed": true
 }
 ```
 
@@ -1017,17 +998,9 @@ Content-Type: application/json
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "PRZ_DELETED",
-  "message": "경품이 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 ---
 
@@ -1036,7 +1009,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 경품 특정 상태 필드만 변경
 - **메소드**: `PATCH`
-- **URL**: `/api/v1/prizes/{prizeId}/status`
+- **URL**: `/api/v1/prizes/{prizeId}`
 
 **Request Header**
 ```
@@ -1052,8 +1025,7 @@ Content-Type: application/json
 **Request Body**
 ```json
 {
-  "isActive": false,
-  "isDeleted": true
+  "isActive": false
 }
 ```
 
@@ -1228,17 +1200,9 @@ Content-Type: application/json
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "ROUND_PRIZE_DELETED",
-  "message": "경품 설정이 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 ---
 
@@ -1247,7 +1211,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 회차별 경품 설정 특정 상태 필드만 변경
 - **메소드**: `PATCH`
-- **URL**: `/api/v1/rounds/{roundId}/prizes/{roundPrizeId}/status`
+- **URL**: `/api/v1/rounds/{roundId}/prizes/{roundPrizeId}`
 
 **Request Header**
 ```
@@ -1264,8 +1228,7 @@ Content-Type: application/json
 **Request Body**
 ```json
 {
-  "isActive": false,
-  "isDeleted": true
+  "isActive": false
 }
 ```
 
@@ -1397,17 +1360,9 @@ Content-Type: application/json
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "PROB_DELETED",
-  "message": "확률 설정이 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 ---
 
@@ -1548,17 +1503,9 @@ Content-Type: application/json
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "APPL_DELETED",
-  "message": "참여자가 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 ---
 
@@ -1571,7 +1518,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 응모 이력 수기 등록
 - **메소드**: `POST`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/applicants/{applicantId}/entries`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries`
 
 **Request Header**
 ```
@@ -1695,17 +1642,9 @@ Content-Type: application/json
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "ENTRY_DELETED",
-  "message": "응모자가 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 ---
 
@@ -1714,7 +1653,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 응모 이력 특정 상태 필드만 변경
 - **메소드**: `PATCH`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries/{entryId}/status`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries/{entryId}`
 
 **Request Header**
 ```
@@ -1732,8 +1671,7 @@ Content-Type: application/json
 **Request Body**
 ```json
 {
-  "isWinner": true,
-  "isDeleted": false
+  "isWinner": true
 }
 ```
 
@@ -1757,12 +1695,57 @@ Content-Type: application/json
 
 ---
 
-### 41. 당첨자 수기 등록
+### 41. 추첨 실행
+
+- **접근 권한**: 운영자
+- **기능 설명**: 회차 추첨 실행. 응모자 중 당첨자를 선정하여 `event_win`에 결과를 저장
+- **메소드**: `POST`
+- **URL**: `/api/v1/rounds/{roundId}/draws`
+
+**Request Header**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `eventId` | Long | Y | 이벤트 식별자 (Path) |
+| `roundId` | Long | Y | 회차 식별자 (Path) |
+
+**Request Body**: 없음
+
+**Response Header**: `HTTP/1.1 200 OK`
+
+**Response Body**
+```json
+{
+  "code": "DRAW_EXECUTED",
+  "message": "추첨이 완료되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": {
+    "roundId": 1,
+    "totalWinnerCount": 10,
+    "drawnAt": "2026-03-09T10:00:00Z"
+  }
+}
+```
+
+**Error Response**
+| HTTP Status | code | message |
+|-------------|------|---------|
+| 404 | `EVT_NOT_FOUND` | 이벤트를 찾을 수 없습니다. |
+| 409 | `PRZ_OUT_OF_STOCK` | 경품 재고가 소진되었습니다. |
+
+---
+
+### 42. 당첨자 수기 등록
 
 - **접근 권한**: 운영자
 - **기능 설명**: 당첨자 수기 등록
 - **메소드**: `POST`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/wins`
+- **URL**: `/api/v1/wins`
 
 **Request Header**
 ```
@@ -1804,7 +1787,7 @@ Content-Type: application/json
 - **접근 권한**: 운영자
 - **기능 설명**: 당첨자 목록 조회 및 검색
 - **메소드**: `GET`
-- **URL**: `/api/v1/events/{eventId}/wins`
+- **URL**: `/api/v1/wins`
 
 **Request Header**
 ```
@@ -1814,8 +1797,8 @@ Authorization: Bearer {adminToken}
 **Request 파라미터**
 | 파라미터 | 타입 | 필수 | 설명 |
 |---------|------|------|------|
-| `eventId` | Long | Y | 이벤트 식별자 (Path) |
-| `roundId` | Long | N | 회차 식별자 |
+| `eventId` | Long | N | 이벤트 식별자 (Query) |
+| `roundId` | Long | N | 회차 식별자 (Query) |
 | `memberId` | String | N | 회원 식별자 |
 | `applicantId` | Long | N | 참여자 식별자 |
 | `entryId` | Long | N | 응모 식별자 |
@@ -1860,7 +1843,7 @@ Authorization: Bearer {adminToken}
 - **접근 권한**: 운영자
 - **기능 설명**: 당첨 정보 수정 (오기입 정정용)
 - **메소드**: `PUT`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/wins/{winId}`
+- **URL**: `/api/v1/wins/{winId}`
 
 **Request Header**
 ```
@@ -1900,24 +1883,16 @@ Content-Type: application/json
 - **접근 권한**: 운영자
 - **기능 설명**: 당첨자 논리 삭제
 - **메소드**: `DELETE`
-- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/wins/{winId}`
+- **URL**: `/api/v1/wins/{winId}`
 
 **Request Header**
 ```
 Authorization: Bearer {adminToken}
 ```
 
-**Response Header**: `HTTP/1.1 200 OK`
+**Response Header**: `HTTP/1.1 204 No Content`
 
-**Response Body**
-```json
-{
-  "code": "WIN_DELETED",
-  "message": "당첨자가 삭제되었습니다.",
-  "timestamp": "2026-03-09T08:00:00Z",
-  "data": null
-}
-```
+**Response Body**: 없음
 
 **Error Response**
 | HTTP Status | code | message |
