@@ -30,50 +30,55 @@
 7. [이벤트 상세 조회](#7-이벤트-상세-조회)
 8. [이벤트 수정](#8-이벤트-수정)
 9. [이벤트 삭제](#9-이벤트-삭제)
+10. [이벤트 상태 변경](#10-이벤트-상태-변경)
 
 **회차 (event_round)**
-10. [회차 생성](#10-회차-생성)
-11. [회차 목록 조회](#11-회차-목록-조회)
-12. [회차 상세 조회](#12-회차-상세-조회)
-13. [회차 수정](#13-회차-수정)
-14. [회차 삭제](#14-회차-삭제)
+11. [회차 생성](#11-회차-생성)
+12. [회차 목록 조회](#12-회차-목록-조회)
+13. [회차 상세 조회](#13-회차-상세-조회)
+14. [회차 수정](#14-회차-수정)
+15. [회차 삭제](#15-회차-삭제)
+16. [회차 상태 변경](#16-회차-상태-변경)
 
 **경품 (prize)**
-15. [경품 생성](#15-경품-생성)
-16. [경품 목록 조회](#16-경품-목록-조회)
-17. [경품 상세 조회](#17-경품-상세-조회)
-18. [경품 수정](#18-경품-수정)
-19. [경품 삭제](#19-경품-삭제)
+17. [경품 생성](#17-경품-생성)
+18. [경품 목록 조회](#18-경품-목록-조회)
+19. [경품 상세 조회](#19-경품-상세-조회)
+20. [경품 수정](#20-경품-수정)
+21. [경품 삭제](#21-경품-삭제)
+22. [경품 상태 변경](#22-경품-상태-변경)
 
 **회차별 경품 설정 (event_round_prize)**
-20. [경품 설정 등록](#20-경품-설정-등록)
-21. [경품 설정 조회](#21-경품-설정-조회)
-22. [경품 설정 수정](#22-경품-설정-수정)
-23. [경품 설정 삭제](#23-경품-설정-삭제)
+23. [경품 설정 등록](#23-경품-설정-등록)
+24. [경품 설정 조회](#24-경품-설정-조회)
+25. [경품 설정 수정](#25-경품-설정-수정)
+26. [경품 설정 삭제](#26-경품-설정-삭제)
+27. [경품 설정 상태 변경](#27-경품-설정-상태-변경)
 
 **확률 (event_round_prize_probability)**
-24. [확률 설정 등록](#24-확률-설정-등록)
-25. [확률 설정 조회](#25-확률-설정-조회)
-26. [확률 설정 수정](#26-확률-설정-수정)
-27. [확률 설정 삭제](#27-확률-설정-삭제)
+28. [확률 설정 등록](#28-확률-설정-등록)
+29. [확률 설정 조회](#29-확률-설정-조회)
+30. [확률 설정 수정](#30-확률-설정-수정)
+31. [확률 설정 삭제](#31-확률-설정-삭제)
 
 **참여자 (event_applicant)**
-28. [참여자 수기 등록](#28-참여자-수기-등록)
-29. [참여자 조회 / 검색](#29-참여자-조회--검색)
-30. [참여자 수정](#30-참여자-수정)
-31. [참여자 삭제](#31-참여자-삭제)
+32. [참여자 수기 등록](#32-참여자-수기-등록)
+33. [참여자 조회 / 검색](#33-참여자-조회--검색)
+34. [참여자 수정](#34-참여자-수정)
+35. [참여자 삭제](#35-참여자-삭제)
 
 **응모자 (event_entry)**
-32. [응모자 수기 등록](#32-응모자-수기-등록)
-33. [응모자 조회 / 검색](#33-응모자-조회--검색)
-34. [응모자 수정](#34-응모자-수정)
-35. [응모자 삭제](#35-응모자-삭제)
+36. [응모자 수기 등록](#36-응모자-수기-등록)
+37. [응모자 조회 / 검색](#37-응모자-조회--검색)
+38. [응모자 수정](#38-응모자-수정)
+39. [응모자 삭제](#39-응모자-삭제)
+40. [응모자 상태 변경](#40-응모자-상태-변경)
 
 **당첨자 (event_win)**
-36. [당첨자 수기 등록](#36-당첨자-수기-등록)
-37. [당첨자 조회 / 검색](#37-당첨자-조회--검색)
-38. [당첨자 수정](#38-당첨자-수정)
-39. [당첨자 삭제](#39-당첨자-삭제)
+41. [당첨자 수기 등록](#41-당첨자-수기-등록)
+42. [당첨자 조회 / 검색](#42-당첨자-조회--검색)
+43. [당첨자 수정](#43-당첨자-수정)
+44. [당첨자 삭제](#44-당첨자-삭제)
 
 ---
 
@@ -537,6 +542,56 @@ Authorization: Bearer {adminToken}
 
 ---
 
+### 10. 이벤트 상태 변경
+
+- **접근 권한**: 운영자
+- **기능 설명**: 이벤트 특정 상태 필드만 변경
+- **메소드**: `PATCH`
+- **URL**: `/api/v1/events/{eventId}/status`
+
+**Request Header**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `eventId` | Long | Y | 이벤트 식별자 (Path) |
+
+**Request Body**
+```json
+{
+  "isActive": true,
+  "isVisible": true,
+  "isDeleted": false,
+  "isAutoEntry": false,
+  "isWinnerAnnounced": true
+}
+```
+
+> 변경할 필드만 포함하여 전송. 포함되지 않은 필드는 변경되지 않음.
+
+**Response Header**: `HTTP/1.1 200 OK`
+
+**Response Body**
+```json
+{
+  "code": "EVT_STATUS_UPDATED",
+  "message": "이벤트 상태가 변경되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": null
+}
+```
+
+**Error Response**
+| HTTP Status | code | message |
+|-------------|------|---------|
+| 404 | `EVT_NOT_FOUND` | 이벤트를 찾을 수 없습니다. |
+
+---
+
 ## 회차 (event_round)
 
 ---
@@ -733,11 +788,54 @@ Authorization: Bearer {adminToken}
 
 ---
 
+### 16. 회차 상태 변경
+
+- **접근 권한**: 운영자
+- **기능 설명**: 회차 특정 상태 필드만 변경
+- **메소드**: `PATCH`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/status`
+
+**Request Header**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `eventId` | Long | Y | 이벤트 식별자 (Path) |
+| `roundId` | Long | Y | 회차 식별자 (Path) |
+
+**Request Body**
+```json
+{
+  "isConfirmed": true,
+  "isDeleted": false
+}
+```
+
+> 변경할 필드만 포함하여 전송.
+
+**Response Header**: `HTTP/1.1 200 OK`
+
+**Response Body**
+```json
+{
+  "code": "ROUND_STATUS_UPDATED",
+  "message": "회차 상태가 변경되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": null
+}
+```
+
+---
+
 ## 경품 (prize)
 
 ---
 
-### 15. 경품 생성
+### 17. 경품 생성
 
 - **접근 권한**: 운영자
 - **기능 설명**: 경품 마스터 등록
@@ -933,11 +1031,58 @@ Authorization: Bearer {adminToken}
 
 ---
 
+### 22. 경품 상태 변경
+
+- **접근 권한**: 운영자
+- **기능 설명**: 경품 특정 상태 필드만 변경
+- **메소드**: `PATCH`
+- **URL**: `/api/v1/prizes/{prizeId}/status`
+
+**Request Header**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `prizeId` | Long | Y | 경품 식별자 (Path) |
+
+**Request Body**
+```json
+{
+  "isActive": false,
+  "isDeleted": true
+}
+```
+
+> 변경할 필드만 포함하여 전송.
+
+**Response Header**: `HTTP/1.1 200 OK`
+
+**Response Body**
+```json
+{
+  "code": "PRZ_STATUS_UPDATED",
+  "message": "경품 상태가 변경되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": null
+}
+```
+
+**Error Response**
+| HTTP Status | code | message |
+|-------------|------|---------|
+| 404 | `PRZ_NOT_FOUND` | 경품을 찾을 수 없습니다. |
+
+---
+
 ## 회차별 경품 설정 (event_round_prize)
 
 ---
 
-### 20. 경품 설정 등록
+### 23. 경품 설정 등록
 
 - **접근 권한**: 운영자
 - **기능 설명**: 회차에 경품 정책 등록
@@ -1097,11 +1242,54 @@ Authorization: Bearer {adminToken}
 
 ---
 
+### 27. 경품 설정 상태 변경
+
+- **접근 권한**: 운영자
+- **기능 설명**: 회차별 경품 설정 특정 상태 필드만 변경
+- **메소드**: `PATCH`
+- **URL**: `/api/v1/rounds/{roundId}/prizes/{roundPrizeId}/status`
+
+**Request Header**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `roundId` | Long | Y | 회차 식별자 (Path) |
+| `roundPrizeId` | Long | Y | 회차경품 식별자 (Path) |
+
+**Request Body**
+```json
+{
+  "isActive": false,
+  "isDeleted": true
+}
+```
+
+> 변경할 필드만 포함하여 전송.
+
+**Response Header**: `HTTP/1.1 200 OK`
+
+**Response Body**
+```json
+{
+  "code": "ROUND_PRIZE_STATUS_UPDATED",
+  "message": "경품 설정 상태가 변경되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": null
+}
+```
+
+---
+
 ## 확률 (event_round_prize_probability)
 
 ---
 
-### 24. 확률 설정 등록
+### 28. 확률 설정 등록
 
 - **접근 권한**: 운영자
 - **기능 설명**: 회차-경품 확률 정책 등록
@@ -1521,11 +1709,55 @@ Authorization: Bearer {adminToken}
 
 ---
 
+### 40. 응모자 상태 변경
+
+- **접근 권한**: 운영자
+- **기능 설명**: 응모 이력 특정 상태 필드만 변경
+- **메소드**: `PATCH`
+- **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries/{entryId}/status`
+
+**Request Header**
+```
+Authorization: Bearer {adminToken}
+Content-Type: application/json
+```
+
+**Request 파라미터**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `eventId` | Long | Y | 이벤트 식별자 (Path) |
+| `roundId` | Long | Y | 회차 식별자 (Path) |
+| `entryId` | Long | Y | 응모 식별자 (Path) |
+
+**Request Body**
+```json
+{
+  "isWinner": true,
+  "isDeleted": false
+}
+```
+
+> 변경할 필드만 포함하여 전송.
+
+**Response Header**: `HTTP/1.1 200 OK`
+
+**Response Body**
+```json
+{
+  "code": "ENTRY_STATUS_UPDATED",
+  "message": "응모자 상태가 변경되었습니다.",
+  "timestamp": "2026-03-09T08:00:00Z",
+  "data": null
+}
+```
+
+---
+
 ## 당첨자 (event_win)
 
 ---
 
-### 36. 당첨자 수기 등록
+### 41. 당첨자 수기 등록
 
 - **접근 권한**: 운영자
 - **기능 설명**: 당첨자 수기 등록
