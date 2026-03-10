@@ -2,6 +2,9 @@
 
 > BaseResponse: `{ code, message, timestamp, data }`
 
+- 이벤트 플랫폼은 자체 회원 없음. 돌쇠네 쇼핑몰 회원 사용.
+- 관리자 API는 `/admin` prefix 없음 (API로도 생성 가능하기 때문).
+
 ## 인증 방식
 
 | 구분 | 호출 주체 | 인증 방식 |
@@ -9,9 +12,45 @@
 | **사용자 API** | 돌쇠네 쇼핑몰 서버 | `X-Api-Key: {apiKey}` + `X-Member-Id: {memberId}` |
 | **관리자 API** | 운영자 | `Authorization: Bearer {adminToken}` |
 
-> - 이벤트 플랫폼은 자체 회원 없음. 돌쇠네 쇼핑몰 회원 사용.
-> - `memberId`는 돌쇠네 회원 ID이며 **검증 없이 식별자로 사용**.
-> - 관리자 API는 `/admin` prefix 없음 (API로도 생성 가능하기 때문).
+## MVP 인증 구조
+
+돌쇠네 쇼핑몰 서버만 이 API를 호출할 수 있도록 **두 가지**로 막습니다.
+
+### 1. X-Api-Key
+
+- 쇼핑몰 서버 ↔ 이벤트 서버 간 사전 발급된 고정 API Key
+- 이벤트 플랫폼 API 호출 시 서버 인증 용도
+- 서버는 키가 맞는지 확인하고, 틀리면 요청을 거부합니다.
+
+#### 예시
+
+X-Api-Key: dolsoeh-event-server-key
+
+#### 서버 검증 예시
+```java
+if (!apiKey.equals(expectedKey)) {
+    throw new UnauthorizedException();
+}
+```
+
+### 2. IP 차단 (가능하면)
+
+쇼핑몰 서버 IP만 API 접근 허용하여, 외부에서 아예 호출이 안 되게 막습니다.
+
+#### IP Allowlist
+
+쇼핑몰 서버 IP만 API 접근 허용
+
+### 3. 향후 인증 확장 계획
+
+API Key 대신 **HMAC 서명 토큰**으로 전환합니다.
+- 요청마다 서버가 서명을 검증하기 때문에 위조가 불가능해집니다.
+```java
+X-Api-Key: base64(eventId:memberId:expireTime:signature)
+signature = HMAC(secret, eventId:memberId:expireTime)
+```
+
+
 
 ---
 
@@ -30,15 +69,21 @@
 
 - **접근 권한**: 사용자 (돌쇠네 서버)
 - **기능 설명**: 이벤트 회차에 응모
-    - `event_applicant` — 이벤트 참여 등록 (`event_id + member_id` unique). 없으면 생성, 있으면 재사용
-    - `event_entry` — 실제 응모 기록. 응모시마다 append-only로 누적 (`applicant_id + round_id`)
-    - 즉시 당첨 여부를 항상 응답에 포함. 즉시 당첨이 아니면 `isWinner: null`
+    - `event_applicant` — 이벤트 참여자 등록 
+      - (`event_id + member_id` unique). 
+      - 최초 참여 시 생성, 이후 재사용
+    - `event_entry` 
+      - 실제 응모 기록. 
+      - 응모시마다 append-only로 누적 
+      - (`applicant_id + round_id` unique)
+      - 즉시 당첨 여부를 항상 응답에 포함. 즉시 당첨이 아니면 `isWinner: null`
 - **메소드**: `POST`
 - **URL**: `/api/v1/events/{eventId}/rounds/{roundId}/entries`
 
 **Request Header**
 ```
 X-Api-Key: {apiKey}
+X-Member-Id: {memberId}
 Content-Type: application/json
 ```
 
@@ -176,7 +221,9 @@ Content-Type: application/json
 
 ## 2. 이벤트 상세 및 참여 상태 조회
 
-- **접근 권한**: 프론트
+- 출석 이벤트의 전체 회차 목록과 출석 상태를 조회합니다.
+
+- **접근 권한**: 돌쇠네 쇼핑몰 서버
 - **기능 설명**: 출석체크 이벤트의 전체 회차(날짜) 목록 및 출석 현황 조회. `eventType: ATTENDANCE`일 때 동작
 - **메소드**: `GET`
 - **URL**: `/api/v1/events/{eventId}`
@@ -198,9 +245,9 @@ X-Member-Id: {memberId}
 
 
 ### 출석체크 이벤트 (`ATTENDANCE`): 
-- 전체 회차(날짜) 28개 전부 반환. 페이지네이션 없음.
+- 전체 회차(날짜) 반환. 페이지네이션 없음.
 - 2월 출석체크 이벤트의 경우 
-- 2월 1일 ~ 2월 28일까지, 28개 회차 반환
+  - 2월 1일 ~ 2월 28일까지, 28개 회차 반환
 
 ```json
 {
@@ -222,19 +269,18 @@ X-Member-Id: {memberId}
     "createdAt": "2026-01-20T10:00:00Z",
     "totalCount": 28,
     "rounds": [
-      { "roundId": 1,  "roundNo": 1,  "roundDate": "2026-02-01", "status": "ATTENDED" },
-      { "roundId": 2,  "roundNo": 2,  "roundDate": "2026-02-02", "status": "MISSED"   },
-      { "roundId": 3,  "roundNo": 3,  "roundDate": "2026-02-03", "status": "ATTENDED" },
-      { "roundId": 4,  "roundNo": 4,  "roundDate": "2026-02-04", "status": "ATTENDED" },
-      { "roundId": 5,  "roundNo": 5,  "roundDate": "2026-02-05", "status": "ATTENDED" },
-      { "roundId": 6,  "roundNo": 6,  "roundDate": "2026-02-06", "status": "MISSED"   },
-      { "roundId": 7,  "roundNo": 7,  "roundDate": "2026-02-07", "status": "ATTENDED" },
-      { "roundId": 8,  "roundNo": 8,  "roundDate": "2026-02-08", "status": "ATTENDED" },
-      { "roundId": 9,  "roundNo": 9,  "roundDate": "2026-02-09", "status": "TODAY"    },
-      { "roundId": 10, "roundNo": 10, "roundDate": "2026-02-10", "status": "FUTURE"   },
-      { "roundId": 11, "roundNo": 11, "roundDate": "2026-02-11", "status": "FUTURE"   },
-      { "comment": "...이하 동일..."},
-      { "roundId": 28, "roundNo": 28, "roundDate": "2026-02-28", "status": "FUTURE"   }
+      { "roundId": 1, "roundNo": 1, "roundDate": "2026-02-01", "status": "ATTENDED", "win": { "prizeName": "출석 포인트", "rewardType": "POINT", "pointAmount": 30 } },
+      { "roundId": 2, "roundNo": 2, "roundDate": "2026-02-02", "status": "MISSED",   "win": null },
+      { "roundId": 3, "roundNo": 3, "roundDate": "2026-02-03", "status": "ATTENDED", "win": { "prizeName": "출석 포인트", "rewardType": "POINT", "pointAmount": 30 } },
+      { "roundId": 4, "roundNo": 4, "roundDate": "2026-02-04", "status": "ATTENDED", "win": { "prizeName": "출석 포인트", "rewardType": "POINT", "pointAmount": 30 } },
+      { "roundId": 5, "roundNo": 5, "roundDate": "2026-02-05", "status": "ATTENDED", "win": { "prizeName": "출석 포인트", "rewardType": "POINT", "pointAmount": 30 } },
+      { "roundId": 6, "roundNo": 6, "roundDate": "2026-02-06", "status": "MISSED",   "win": null },
+      { "roundId": 7, "roundNo": 7, "roundDate": "2026-02-07", "status": "ATTENDED", "win": { "prizeName": "출석 포인트", "rewardType": "POINT", "pointAmount": 30 } },
+      { "roundId": 8, "roundNo": 8, "roundDate": "2026-02-08", "status": "ATTENDED", "win": { "prizeName": "출석 포인트", "rewardType": "POINT", "pointAmount": 30 } },
+      { "roundId": 9, "roundNo": 9, "roundDate": "2026-02-09", "status": "TODAY",    "win": null },
+      { "roundId": 10, "roundNo": 10, "roundDate": "2026-02-10", "status": "FUTURE", "win": null },
+      { "comment": "...이하 동일..." },
+      { "roundId": 28, "roundNo": 28, "roundDate": "2026-02-28", "status": "FUTURE", "win": null }
     ],
     "attendanceSummary": {
       "attendedDays": 7,
@@ -286,13 +332,20 @@ X-Member-Id: {memberId}
         "roundId": 1,
         "roundNo": 1,
         "startAt": "2026-03-01T00:00:00Z",
-        "endAt": "2026-03-31T23:59:59Z"
+        "endAt": "2026-03-31T23:59:59Z",
+        "prizes": [
+          { "prizeId": 1, "prizeName": "스타벅스 아메리카노", "rewardType": "COUPON", "quantity": 100 },
+          { "prizeId": 2, "prizeName": "네이버 페이 3만원 쿠폰", "rewardType": "COUPON", "quantity": 10 }
+        ]
       },
       {
         "roundId": 2,
         "roundNo": 2,
         "startAt": "2026-04-01T00:00:00Z",
-        "endAt": "2026-04-30T23:59:59Z"
+        "endAt": "2026-04-30T23:59:59Z",
+        "prizes": [
+          { "prizeId": 3, "prizeName": "스타복 기프티콘 5만원", "rewardType": "COUPON", "quantity": 50 }
+        ]
       }
     ]
   }

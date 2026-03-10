@@ -548,13 +548,20 @@ Authorization: Bearer {adminToken}
         "roundId": 1,
         "roundNo": 1,
         "startAt": "2026-03-01T00:00:00Z",
-        "endAt": "2026-03-31T23:59:59Z"
+        "endAt": "2026-03-31T23:59:59Z",
+        "prizes": [
+          { "prizeId": 1, "prizeName": "스타벅스 아메리카노", "rewardType": "COUPON", "quantity": 100 },
+          { "prizeId": 2, "prizeName": "네이버 페이 3만원 쿠폰", "rewardType": "COUPON", "quantity": 10 }
+        ]
       },
       {
         "roundId": 2,
         "roundNo": 2,
         "startAt": "2026-04-01T00:00:00Z",
-        "endAt": "2026-04-30T23:59:59Z"
+        "endAt": "2026-04-30T23:59:59Z",
+        "prizes": [
+          { "prizeId": 3, "prizeName": "스타벅스 기프티콘 5만원", "rewardType": "COUPON", "quantity": 50 }
+        ]
       }
     ]
   }
