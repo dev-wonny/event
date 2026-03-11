@@ -231,8 +231,11 @@ Content-Type: application/json
 **Request Header**
 ```
 X-Api-Key: {apiKey}
-X-Member-Id: {memberId}
+X-Member-Id: {memberId}   (선택)
 ```
+
+> - `X-Member-Id` **있음**: 해당 회원의 출석 상태(`ATTENDED` / `MISSED` / `TODAY` / `FUTURE`) 포함하여 반환
+> - `X-Member-Id` **없음**: 출석 상태 없이 전체 28일 회차 기본 정보만 반환 (`status: null`, `win: null`)
 
 **Request 파라미터**
 | 파라미터 | 타입 | 필수 | 설명 |
